@@ -1,6 +1,6 @@
 ---
 name: track
-description: "Zero-config project radar. Scans your codebase, detects stack, runs build, audits deps, measures git velocity, hunts TODOs — then generates a visual dashboard with honest launch readiness %. Works with any language: Node, Rust, Go, Python, Java, Ruby, PHP, mobile, monorepo."
+description: "Zero-config project radar. Scans your codebase, detects stack, runs build, audits deps, measures git velocity, hunts TODOs — then generates a visual dashboard with honest launch readiness %. Shows delta from last scan. Works with any language: Node, Rust, Go, Python, Java, Ruby, PHP, mobile, monorepo."
 allowed-tools: Read Write Edit Bash Glob Grep Agent
 user-invocable: true
 ---
@@ -39,6 +39,9 @@ ls .env* .vercel vercel.json netlify.toml fly.toml Dockerfile docker-compose* ra
 ls supabase/ prisma/ drizzle/ 2>/dev/null
 ls .github/workflows/*.yml 2>/dev/null
 ls jest.config* vitest.config* playwright.config* pytest.ini setup.cfg tox.ini .rspec 2>/dev/null
+
+# Docs & project health
+ls README.md CLAUDE.md LICENSE* CONTRIBUTING.md CHANGELOG.md 2>/dev/null
 ```
 
 Identify: stack, framework, language, versions, deploy target, database, CI/CD, test framework, monorepo status.
@@ -59,7 +62,7 @@ find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx"
 ```
 
 ### Build Check (adapt to stack — run the first that applies)
-- **Node.js**: `npm run build 2>&1 | tail -30`
+- **Node.js**: `cd <project-or-subdir> && npm run build 2>&1 | tail -30`
 - **Rust**: `cargo check 2>&1 | tail -15`
 - **Go**: `go build ./... 2>&1`
 - **Python**: `python -m compileall . -q 2>&1 | tail -10`
@@ -97,13 +100,39 @@ grep -rn "TODO\|FIXME\|HACK\|XXX\|BLOCKER" --include="*.ts" --include="*.tsx" --
 find . -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" | grep -v node_modules | wc -l
 ```
 
-## Phase 3: Read Existing Dashboard
+### Missing Environment Variables
+```bash
+# Compare .env.example (or .env.local.example) vs actual .env (or .env.local)
+# Report any variables defined in example but missing from actual
+if [ -f .env.example ]; then
+  comm -23 <(grep -oP '^[A-Z_]+' .env.example | sort) <(grep -oP '^[A-Z_]+' .env 2>/dev/null | sort) 2>/dev/null
+elif [ -f .env.local.example ]; then
+  comm -23 <(grep -oP '^[A-Z_]+' .env.local.example | sort) <(grep -oP '^[A-Z_]+' .env.local 2>/dev/null | sort) 2>/dev/null
+fi
+```
+
+### Project Docs Check
+Check existence and report:
+- `README.md` — exists? has content (>10 lines)?
+- `LICENSE` — exists? what type?
+- `CLAUDE.md` — exists?
+- `.gitignore` — exists?
+- `CONTRIBUTING.md` — exists?
+
+## Phase 3: Read Existing Dashboard + Get Previous %
 
 Look for dashboard in this order: `INFRASTRUCTURE_STATUS.md` → `DASHBOARD.md` → `STATUS.md`.
 
-If found, read it. **PRESERVE all Change Log, Decision Log, and Learnings entries** — these are append-only. Never delete history.
+If found:
+1. Read it entirely
+2. **Extract the previous OVERALL %** from the progress bar line (e.g., `75%`)
+3. **PRESERVE all Change Log, Decision Log, and Learnings entries** — these are append-only
+4. Note: this is an UPDATE run
 
-If none exists, you'll create `INFRASTRUCTURE_STATUS.md` from scratch.
+If none exists:
+1. This is a FIRST RUN
+2. You'll create `INFRASTRUCTURE_STATUS.md` from scratch
+3. Previous % = 0%
 
 ## Phase 4: Detect Project Areas & Calculate %
 
@@ -135,6 +164,15 @@ An area is a BLOCKER if:
   - Has security vulnerabilities
   - Build fails because of it
   - Legal/compliance requirements unmet
+```
+
+### Delta Calculation
+
+```
+delta = new_% - previous_%
+Show as: 75% → 80% (+5%)
+Or:      80% → 75% (-5%)  ← regression!
+Or:      75% (first scan)  ← no previous data
 ```
 
 ### Progress Bar Format (20 chars)
@@ -192,9 +230,18 @@ Commits 7d/30d, contributors, branches, uncommitted changes
 | Metric | Value |
 TODOs, FIXMEs, HACKs count + table of top 5 critical items with file:line
 
+## Missing Env Vars
+[Only if .env.example exists and has vars not in .env]
+| Variable | Defined In | Missing From |
+[list missing variables]
+
 ## Security
-[only if applicable]
+[Only if the project has security-relevant code]
 | Check | Status | Detail |
+
+## Project Docs
+| Document | Status |
+README, LICENSE, CLAUDE.md, .gitignore, CONTRIBUTING
 
 ## Testing
 | Metric | Value |
@@ -233,29 +280,52 @@ APPEND if something was learned
 
 ## Phase 6: Update Supporting Files
 
-- `PROGRESS.md` — sync %, append change log, update metrics
+- `PROGRESS.md` — sync %, update progress bars, append change log
 - `DASHBOARD.md` — sync if not a redirect
 - `TODO.md` / `ROADMAP.md` — mark completed items
 
 ## Phase 7: Terminal Summary
 
-Output this after updating:
+Output this after updating. Include the delta from previous scan:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  /track complete
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
- Launch:  [████████████████░░░░]  XX%
+ Launch:  [████████████████░░░░]  80%  (was 75%, +5%)
  Build:   ✅ Pass (0 errors)
  Deps:    N prod · N dev · N outdated · N vulns
  Git:     N commits/7d · N branches · N uncommitted
  Health:  N TODOs · N FIXMEs · N BLOCKERs
+ Docs:    README ✅ · LICENSE ✅ · CLAUDE.md ✅
+ Env:     N missing vars
 
  Changed: [files updated]
  Next:    [highest priority pending item]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+If first run (no previous %), show:
+```
+ Launch:  [████████████████░░░░]  80%  (first scan)
+```
+
+---
+
+## Phase 8: Auto-sync to GitHub (if applicable)
+
+If the file `~/clawd/claude-skills/track/SKILL.md` exists, it means the user maintains a GitHub repo for their skills. After updating the skill at `~/.claude/skills/track/SKILL.md`, also:
+
+```bash
+# Only if the repo copy exists
+if [ -f ~/clawd/claude-skills/track/SKILL.md ]; then
+  cp ~/.claude/skills/track/SKILL.md ~/clawd/claude-skills/track/SKILL.md
+  cd ~/clawd/claude-skills && git add -A && git diff --cached --quiet || git commit -m "sync /track skill" && git push 2>/dev/null
+fi
+```
+
+This is optional and silent — don't mention it in the output unless it fails.
 
 ---
 
@@ -267,3 +337,4 @@ Output this after updating:
 4. **Honest percentages** — blockers weigh 2x, roadmap excluded
 5. **30-second scan** — readable at a glance
 6. **Zero config** — works on first run, any project, any language
+7. **Show deltas** — always compare with previous scan to show progress
