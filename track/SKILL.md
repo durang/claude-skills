@@ -13,6 +13,28 @@ This dashboard is a **working document**. Claude reads it at the start of every 
 
 Every number you write must come from a command you ran. No guesses. No placeholders.
 
+### Auto-update behavior (IMPORTANT)
+
+The dashboard must stay current WITHOUT requiring `/track` every time. Follow these rules:
+
+**After completing any significant work** (feature, fix, config change, security hardening):
+1. Update the `Last sync` timestamp + commit hash
+2. Add a row to `Recent Activity` with time, description, and impact
+3. Update affected Launch Readiness bars (%) if the work changed an area
+4. Update Goals (mark completed items, recalculate gap)
+5. Move completed items from Pending to Shipped
+6. Commit the dashboard update alongside the code changes
+
+**This is lightweight** — only edit the lines that changed. Don't re-run build, audit, or velocity commands. That's what `/track` is for.
+
+**When the user runs `/track` explicitly:**
+- Run the FULL scan (build, audit, deps, velocity, code health, all charts)
+- Refresh ALL metrics sections with real command output
+- This is the deep scan — catches everything the auto-updates might miss
+
+**When `/track` runs and nothing changed since last scan hash:**
+- SKIP mode — report status and exit. No wasted tokens.
+
 ---
 
 ## Goal Engine — Intent Detection & Orchestration
@@ -351,20 +373,10 @@ Structure (adapt sections to what the project actually has):
 ╚═══════════════════════════════════════════════════════╝
 \```
 
-> Last sync: YYYY-MM-DD HH:MM · `COMMIT_HASH_SHORT`
-> Launch: XX% → YY% (+Z%)
-
----
-
-## Recent Activity
-
-| When | What | Impact |
-|------|------|--------|
-| HH:MM | [last completed action] | [area affected or % change] |
-| HH:MM | [previous action] | [impact] |
-| HH:MM | [earlier action] | [impact] |
-
-> Show last 5 actions from the current day. Append each time something is completed (code, fix, feature, config). Include timestamp (HH:MM), short description, and impact. This gives the user an instant "what happened today" view.
+> Last sync: YYYY-MM-DD HH:MM · `COMMIT_HASH_SHORT` · Launch: XX%
+>
+> `/track` = full scan (build, audit, velocity, all metrics)
+> Auto-updates after each significant change (timestamp, %, activity)
 
 ---
 
@@ -390,6 +402,17 @@ OVERALL        [████████████████░░░░]  8
 1. [action] — unblocks [area] → +X%
 2. [action] — unblocks [area] → +X%
 3. [action] — improves [area]
+
+---
+
+## Recent Activity
+
+| When | What | Impact |
+|------|------|--------|
+| HH:MM | [last completed action] | [area or % change] |
+| HH:MM | [previous action] | [impact] |
+
+> Last 5 actions today. **Auto-updated** after each significant change (feature, fix, config). `/track` refreshes all metrics.
 
 ---
 
