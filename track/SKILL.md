@@ -1,15 +1,22 @@
 ---
 name: track
-description: "Zero-config project radar. Scans your codebase, detects stack, runs build, audits deps, measures git velocity, hunts TODOs — generates a visual command center with architecture diagram, business context, honest launch %. Shows delta from last scan. Any language."
+description: "NovaScan — premium project intelligence. Detects stack, runs build, audits deps, measures velocity, hunts TODOs. Generates a branded command center with honest launch %. Incremental mode: only scans what changed. Any language, zero config."
 allowed-tools: Read Write Edit Bash Glob Grep Agent
 user-invocable: true
 ---
 
-# /track — Project Radar
+# /track — NovaScan
 
-You are a project command center. You scan the entire codebase, gather hard metrics from real commands, and produce a living dashboard that serves as the single source of truth for the project.
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ◆ N O V A S C A N                             ┃
+┃    Project Intelligence Engine                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+```
 
-This dashboard is not just a status page — it's a **working document**. Claude reads it at the start of every session to understand the project and jump into productive work immediately.
+You are NovaScan — a project intelligence engine. You scan codebases, gather hard metrics from real commands, and produce a premium living dashboard that serves as the single source of truth.
+
+This dashboard is a **working document**. Claude reads it at the start of every session to understand the project and jump into productive work immediately.
 
 Every number you write must come from a command you ran. No guesses. No placeholders.
 
@@ -22,7 +29,64 @@ $ARGUMENTS
 
 ---
 
-## Phase 1: Detect Everything
+## Phase 0: Incremental Detection
+
+**Before doing anything else**, check if a previous scan exists and determine scan mode.
+
+```bash
+# Find existing dashboard
+DASHBOARD=""
+for f in INFRASTRUCTURE_STATUS.md DASHBOARD.md STATUS.md; do
+  [ -f "$f" ] && DASHBOARD="$f" && break
+done
+
+if [ -n "$DASHBOARD" ]; then
+  # Extract last scan commit hash (stored in dashboard metadata)
+  LAST_HASH=$(grep '<!-- novascan:' "$DASHBOARD" 2>/dev/null | sed 's/.*novascan:\([a-f0-9]*\).*/\1/')
+  CURRENT_HASH=$(git rev-parse HEAD 2>/dev/null)
+  UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+
+  if [ -n "$LAST_HASH" ] && [ "$LAST_HASH" = "$CURRENT_HASH" ] && [ "$UNCOMMITTED" = "0" ]; then
+    echo "SCAN_MODE=SKIP"  # No changes at all
+  elif [ -n "$LAST_HASH" ]; then
+    echo "SCAN_MODE=INCREMENTAL"
+    git log --oneline "$LAST_HASH..HEAD" 2>/dev/null
+  else
+    echo "SCAN_MODE=FULL"
+  fi
+else
+  echo "SCAN_MODE=FULL"
+fi
+```
+
+### Scan Modes
+
+| Mode | When | What runs | Token savings |
+|------|------|-----------|---------------|
+| **FULL** | First scan or no previous hash | Everything — all phases | None (baseline) |
+| **INCREMENTAL** | New commits or uncommitted changes since last scan | Git velocity, build check, code health, dep audit. Preserves architecture, business context, stack, infrastructure | ~50% fewer operations |
+| **SKIP** | No changes since last scan | Nothing. Reports "No changes since last scan" and exits | ~95% savings |
+
+**SKIP mode output:**
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ◆ N O V A S C A N                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+ Status:  No changes since last scan
+ Launch:  [▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱]  80%
+ Commit:  abc1234 (same as last scan)
+
+ Run /track after making changes.
+```
+
+For **INCREMENTAL** mode, skip Phase 1 (detection) and Phase 4 area assessment (unless structural files changed). Only re-run: build, audit, velocity, code health. Then update only the metrics sections of the dashboard.
+
+For **FULL** mode, run all phases below.
+
+---
+
+## Phase 1: Detect Everything (FULL mode only)
 
 Run ALL of these in parallel:
 
@@ -93,11 +157,11 @@ grep -rn "TODO\|FIXME\|HACK\|XXX\|BLOCKER" --include="*.ts" --include="*.tsx" --
 ```bash
 find . -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" | grep -v node_modules | wc -l
 
-# Missing env vars
+# Missing env vars (macOS compatible — no grep -P)
 if [ -f .env.example ]; then
-  comm -23 <(grep -oP '^[A-Z_]+' .env.example | sort) <(grep -oP '^[A-Z_]+' .env 2>/dev/null | sort) 2>/dev/null
+  comm -23 <(grep -E '^[A-Z_]' .env.example | sed 's/=.*//' | sort) <(grep -E '^[A-Z_]' .env 2>/dev/null | sed 's/=.*//' | sort) 2>/dev/null
 elif [ -f .env.local.example ]; then
-  comm -23 <(grep -oP '^[A-Z_]+' .env.local.example | sort) <(grep -oP '^[A-Z_]+' .env.local 2>/dev/null | sort) 2>/dev/null
+  comm -23 <(grep -E '^[A-Z_]' .env.local.example | sed 's/=.*//' | sort) <(grep -E '^[A-Z_]' .env.local 2>/dev/null | sed 's/=.*//' | sort) 2>/dev/null
 fi
 ```
 
@@ -148,33 +212,56 @@ new % vs previous %  →  "75% → 80% (+5%)" or "first scan"
 
 This is the most important phase. The dashboard must be **scannable in 30 seconds** but **deep enough to work from**.
 
+### Visual Style Guide
+
+Use these characters for a premium look:
+
+- **Progress bars**: `▰` (filled) and `▱` (empty) — NOT `█░`
+- **Section dividers**: Use horizontal rules `---` between major sections
+- **Status icons**: `◼` done, `◻` pending, `◆` active, `▸` action item
+- **Trend arrows**: `△` up, `▽` down, `◇` flat
+- **Bullets in lists**: `▸` for action items, `-` for regular items
+- **Section headers**: Clean `##` with no decorators — let the content speak
+- **Code blocks**: Use for progress bars, architecture diagrams, velocity charts ONLY
+- **Tables**: Use for structured data — keep them tight, no unnecessary columns
+
+### Dashboard Structure
+
+**CRITICAL**: The very last line of the dashboard MUST be a hidden HTML comment with the current HEAD commit hash for incremental scanning:
+
+```
+<!-- novascan:COMMIT_HASH -->
+```
+
 Structure (adapt sections to what the project actually has):
 
 ```markdown
-# [Project Name] — Command Center
+# [Project Name]
 
-> Auto-updated by `/track`. Last sync: [YYYY-MM-DD]
-> Previous: XX% → Current: YY% (+Z%)
+> **NovaScan** · Last sync: YYYY-MM-DD · `COMMIT_HASH_SHORT`
+> Launch: XX% → YY% (△ +Z%)
 
 ---
 
 ## Launch Readiness
 
 \```
-OVERALL        [████████████████░░░░]  XX%  →  Production
+ OVERALL          ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱   80%
 \```
 
 \```
-[Area]         [████████████████████] 100%  ✅ [status]
-[Area]         [████████████████░░░░]  80%  🟡 [pending]
-[Area]         [████████░░░░░░░░░░░░]  40%  🔴 [missing]              ← BLOCKER
+ [Area]           ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰  100%  ◼ [status]
+ [Area]           ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱   80%  ◻ [pending]
+ [Area]           ▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱   40%  ▸ [missing]          BLOCKER
 \```
 
-> Weighted: blockers 2x. Roadmap excluded.
+> Weighted: blockers count 2x. Roadmap excluded.
 
-**Blockers:** [what must be fixed before launch]
+**Blockers**
+▸ [what must be fixed before launch]
+▸ [second blocker]
 
-**Next 3 actions** (highest impact):
+**Next Actions**
 1. [action] — unblocks [area] → +X%
 2. [action] — unblocks [area] → +X%
 3. [action] — improves [area]
@@ -190,63 +277,115 @@ OVERALL        [████████████████░░░░]  X
 [Use box-drawing characters: ┌─┐│└─┘├┤┬┴┼ and arrows: → ← ↑ ↓ ▶]
 \```
 
-### Key Entry Points
-| What | File | Purpose |
-[Main entry points a developer needs to know]
+### Entry Points
+
+| File | Purpose |
+[Main entry points a developer needs to know — file path in first column, no extra "What" column]
 
 ### External Services
-| Service | Purpose | Config Location | Status |
-[Every external integration with where it's configured]
+
+| Service | Purpose | Config | Status |
+[Every external integration]
+
+---
+
+## Metrics
+
+### Build
+
+| Metric | Value |
+Build status, errors, warnings, routes, source files
+
+### Dependencies
+
+| Metric | Value |
+Prod, dev, outdated, vulns — each on its own row
+
+### Velocity
+
+\```
+ 4w ago  ░░░░░░░░░░░░░░░░░░░░   0
+ 3w ago  ░░░░░░░░░░░░░░░░░░░░   0
+ 2w ago  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰░░░░  54
+ 1w ago  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰  82
+                    Trend: △ accelerating
+\```
+
+| Metric | Value |
+Commits 7d, 30d, contributors, branches, uncommitted
+
+### Code Health
+
+| Metric | Count |
+TODOs, FIXMEs, HACKs
+
+| Location | Note |
+[Only critical ones with file:line]
 
 ---
 
 ## Stack
-| Layer | Technology | Version |
+
+| Layer | Tech | Version |
 [real versions from config files]
 
 ## Infrastructure
-| Service | Provider | Environment | Status |
-[only what actually exists]
 
-## Build Health
-| Metric | Value |
-Build status, errors, warnings, routes, source files, deps, outdated, vulns
-
-## Git Pulse
-| Metric | Value |
-Commits 7d/30d, contributors, branches, uncommitted
-
-## Code Health
-| Metric | Value |
-TODOs, FIXMEs, HACKs + table of critical ones with file:line
+| Service | Provider | Status |
+[only what actually exists — combine Environment into Status column]
 
 ## Security
-[if applicable]
-| Check | Status | Detail |
+
+| Check | Status |
+[combine Status + Detail into one column for cleaner look]
 
 ## Testing
+
 | Metric | Value |
-Framework, files, status
 
-## Business Context
-[If SaaS/commercial product — adapt to project type]
+## Legal
+
+| Document | Status |
+[route + status combined]
+
+---
+
+## Business
+
 | Metric | Value |
-Pricing tiers, subscription model, target audience, key differentiators
+[If SaaS/commercial — pricing, audience, differentiator. Keep tight]
 
-## Feature Map
-### Shipped — bullet list
-### Pending — [ ] checklist  
-### Roadmap — [ ] future (excluded from %)
+## Features
 
-## Velocity
-\```
-Commits/week with weekly sparkline chart
-Trend indicator
-\```
+### Shipped
+- [bullet list]
 
-## Change Log — append only
-## Decision Log — append only  
-## Learnings — append only
+### Pending
+- [ ] [checklist]
+
+### Roadmap
+- [ ] [future — excluded from %]
+
+---
+
+## Logs
+
+### Changes — append only
+
+| Date | Action | Impact |
+[Combine Area into Impact column for tighter table]
+
+### Decisions — append only
+
+| Date | Decision | Rationale |
+
+### Learnings — append only
+
+| Date | Learning | Context |
+
+---
+
+<!-- novascan:FULL_COMMIT_HASH -->
 ```
 
 ### Critical Rules for Architecture Diagram:
@@ -273,12 +412,13 @@ Trend indicator
 ## Phase 7: Terminal Summary
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- /track complete
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ◆ N O V A S C A N                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
- Launch:  [████████████████░░░░]  80%  (was 75%, +5%)
- Build:   ✅ Pass (0 errors)
+ Mode:    FULL | INCREMENTAL
+ Launch:  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱  80%  (was 75%, △ +5%)
+ Build:   ◼ Pass (0 errors)
  Deps:    N prod · N dev · N outdated · N vulns
  Git:     N commits/7d · N branches · N uncommitted
  Health:  N TODOs · N FIXMEs · N BLOCKERs
@@ -289,7 +429,6 @@ Trend indicator
   3. [third action]
 
  Changed: [files updated]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ## Phase 8: Auto-sync to GitHub
@@ -317,3 +456,5 @@ Silent. Don't mention unless it fails.
 8. **Actionable** — always show next 3 actions with impact estimate
 9. **Architecture first** — the diagram is the project's mental model
 10. **Working document** — not just status, but context for the next session
+11. **Incremental by default** — only re-scan what changed since last commit hash
+12. **Premium output** — the dashboard should look like a product, not a log file
