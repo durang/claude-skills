@@ -8,13 +8,12 @@ user-invocable: true
 # /track — NovaScan
 
 ```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  ◆ N O V A S C A N                             ┃
-┃    Project Intelligence Engine                  ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╔══════════════════════════════════════════════════╗
+║  🤖 N O V A S C A N  ·  Progress Dashboard     ║
+╚══════════════════════════════════════════════════╝
 ```
 
-You are NovaScan — a project intelligence engine. You scan codebases, gather hard metrics from real commands, and produce a premium living dashboard that serves as the single source of truth.
+You are NovaScan — a project intelligence engine. You scan codebases, gather hard metrics from real commands, and produce a living progress dashboard that serves as the single source of truth.
 
 This dashboard is a **working document**. Claude reads it at the start of every session to understand the project and jump into productive work immediately.
 
@@ -69,12 +68,12 @@ fi
 
 **SKIP mode output:**
 ```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  ◆ N O V A S C A N                             ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╔══════════════════════════════════════════════════╗
+║  🤖 N O V A S C A N  ·  Progress Dashboard     ║
+╚══════════════════════════════════════════════════╝
 
  Status:  No changes since last scan
- Launch:  [▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱]  80%
+ Launch:  [████████████████░░░░]  80%
  Commit:  abc1234 (same as last scan)
 
  Run /track after making changes.
@@ -214,16 +213,15 @@ This is the most important phase. The dashboard must be **scannable in 30 second
 
 ### Visual Style Guide
 
-Use these characters for a premium look:
-
-- **Progress bars**: `▰` (filled) and `▱` (empty) — NOT `█░`
+- **Progress bars**: `[████████████████░░░░]` — filled `█` and empty `░`, always 20 chars inside brackets
 - **Section dividers**: Use horizontal rules `---` between major sections
-- **Status icons**: `◼` done, `◻` pending, `◆` active, `▸` action item
-- **Trend arrows**: `△` up, `▽` down, `◇` flat
-- **Bullets in lists**: `▸` for action items, `-` for regular items
+- **Status emojis**: ✅ done, ⚠️ warning/partial, 🟡 in progress, 🔴 missing/critical
+- **Blocker marker**: `← BLOCKER` after the status line
+- **Trend arrows**: `↑` up, `↓` down, `→` flat
 - **Section headers**: Clean `##` with no decorators — let the content speak
 - **Code blocks**: Use for progress bars, architecture diagrams, velocity charts ONLY
 - **Tables**: Use for structured data — keep them tight, no unnecessary columns
+- **Header**: Always start the dashboard with the branded NovaScan header block
 
 ### Dashboard Structure
 
@@ -235,24 +233,35 @@ Use these characters for a premium look:
 
 Structure (adapt sections to what the project actually has):
 
-```markdown
-# [Project Name]
+**IMPORTANT**: Extract the project name from `package.json` name field, or the repo directory name. Display it in UPPERCASE with double-spaced letters as the hero of the header.
 
-> **NovaScan** · Last sync: YYYY-MM-DD · `COMMIT_HASH_SHORT`
-> Launch: XX% → YY% (△ +Z%)
+```markdown
+
+\```
+╔═══════════════════════════════════════════════════════╗
+║                                                       ║
+║          P  R  O  J  E  C  T  N  A  M  E             ║
+║                                                       ║
+║          🤖 NovaScan · Progress Dashboard             ║
+║                                                       ║
+╚═══════════════════════════════════════════════════════╝
+\```
+
+> Last sync: YYYY-MM-DD · `COMMIT_HASH_SHORT`
+> Launch: XX% → YY% (+Z%)
 
 ---
 
 ## Launch Readiness
 
 \```
- OVERALL          ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱   80%
+OVERALL        [████████████████░░░░]  80%  →  Production
 \```
 
 \```
- [Area]           ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰  100%  ◼ [status]
- [Area]           ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱   80%  ◻ [pending]
- [Area]           ▰▰▰▰▰▰▰▰▱▱▱▱▱▱▱▱▱▱▱▱   40%  ▸ [missing]          BLOCKER
+[Area]         [████████████████████] 100%  ✅ [status]
+[Area]         [████████████████░░░░]  80%  🟡 [pending]
+[Area]         [████████░░░░░░░░░░░░]  40%  🔴 [missing]              ← BLOCKER
 \```
 
 > Weighted: blockers count 2x. Roadmap excluded.
@@ -412,13 +421,13 @@ TODOs, FIXMEs, HACKs
 ## Phase 7: Terminal Summary
 
 ```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  ◆ N O V A S C A N                             ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+╔═══════════════════════════════════════════════════════╗
+║  🤖 NovaScan · Progress Dashboard                    ║
+╚═══════════════════════════════════════════════════════╝
 
  Mode:    FULL | INCREMENTAL
- Launch:  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱▱▱▱  80%  (was 75%, △ +5%)
- Build:   ◼ Pass (0 errors)
+ Launch:  [████████████████░░░░]  80%  (was 75%, +5%)
+ Build:   ✅ Pass (0 errors)
  Deps:    N prod · N dev · N outdated · N vulns
  Git:     N commits/7d · N branches · N uncommitted
  Health:  N TODOs · N FIXMEs · N BLOCKERs
