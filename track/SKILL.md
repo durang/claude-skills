@@ -1,175 +1,151 @@
 ---
 name: track
-description: "Project dashboard that auto-detects your stack, gathers real metrics, and maintains a visual status page. Works with any project — Node, Rust, Go, Python, mobile, monorepo. Run after changes to update progress, or with no args to scan current state."
+description: "Zero-config project radar. Scans your codebase, detects stack, runs build, audits deps, measures git velocity, hunts TODOs — then generates a visual dashboard with honest launch readiness %. Works with any language: Node, Rust, Go, Python, Java, Ruby, PHP, mobile, monorepo."
 allowed-tools: Read Write Edit Bash Glob Grep Agent
 user-invocable: true
 ---
 
-# /track — Project Dashboard Generator
+# /track — Project Radar
 
-You maintain a living project dashboard. You detect the tech stack, gather real metrics from the codebase, and produce a visual markdown status page that stays accurate over time.
+You are a project radar system. You scan the entire codebase, gather hard metrics from real commands, and produce a visual dashboard that tells the truth about where the project stands.
+
+Every number you write must come from a command you ran. No guesses. No placeholders.
 
 ## Input
 
 $ARGUMENTS
 
-If arguments are provided, treat them as a description of what just changed.
-If empty, auto-detect changes via `git diff --stat` and recent commits.
+- If arguments provided → treat as description of what just changed
+- If empty → auto-detect via `git diff --stat` and recent commits
 
 ---
 
 ## Phase 1: Detect Everything
 
-Run ALL of these in parallel to understand the project fast:
+Run ALL of these in parallel:
 
 ```bash
-# 1. Project type
+# Project type (try all — only matches print)
 ls package.json Cargo.toml go.mod requirements.txt pyproject.toml Gemfile pom.xml build.gradle composer.json Makefile CMakeLists.txt 2>/dev/null
 
-# 2. Git state
+# Git state
 git log --oneline -10 2>/dev/null
 git diff --stat 2>/dev/null
 git branch -a 2>/dev/null | head -20
 git remote -v 2>/dev/null
 
-# 3. Find config files
+# Infra configs
 ls .env* .vercel vercel.json netlify.toml fly.toml Dockerfile docker-compose* railway.json render.yaml 2>/dev/null
 ls supabase/ prisma/ drizzle/ 2>/dev/null
 ls .github/workflows/*.yml 2>/dev/null
-ls jest.config* vitest.config* playwright.config* pytest.ini setup.cfg tox.ini .rspec Cargo.toml 2>/dev/null
+ls jest.config* vitest.config* playwright.config* pytest.ini setup.cfg tox.ini .rspec 2>/dev/null
 ```
 
-From results, identify:
-- **Stack**: framework + language + version (read package.json / Cargo.toml / go.mod / etc.)
-- **Deploy target**: Vercel / AWS / Docker / Fly / Netlify / Railway / self-hosted
-- **Database**: Supabase / Prisma / Drizzle / raw SQL / MongoDB / Firebase / none
-- **CI/CD**: GitHub Actions / GitLab CI / CircleCI / none
-- **Testing**: Jest / Vitest / Playwright / pytest / cargo test / go test / none
-- **Monorepo?**: Check for workspaces, turborepo, nx, lerna
+Identify: stack, framework, language, versions, deploy target, database, CI/CD, test framework, monorepo status.
+
+If the project has subdirectories (like `web/`, `app/`, `server/`), look inside them too.
 
 ## Phase 2: Gather Metrics
 
-Run the appropriate checks based on what you detected. Always try the build.
+Run the appropriate checks for the detected stack.
 
 ### Code Metrics (always)
 ```bash
-# File counts by extension (top 5 types)
-find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/target/*' -not -path '*/__pycache__/*' -not -path '*/dist/*' -not -path '*/.next/*' | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -10
+# File types distribution
+find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/target/*' -not -path '*/__pycache__/*' -not -path '*/dist/*' -not -path '*/.next/*' -not -path '*/.vercel/*' | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -10
 
-# Total source files (exclude deps/build)
+# Source file count
 find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.py" -o -name "*.rs" -o -name "*.go" -o -name "*.java" -o -name "*.rb" -o -name "*.php" -o -name "*.swift" -o -name "*.kt" \) -not -path '*/node_modules/*' -not -path '*/target/*' -not -path '*/.next/*' | wc -l
 ```
 
-### Build Check (adapt to stack)
-```bash
-# Node.js
-cd <project-dir> && npm run build 2>&1 | tail -30
+### Build Check (adapt to stack — run the first that applies)
+- **Node.js**: `npm run build 2>&1 | tail -30`
+- **Rust**: `cargo check 2>&1 | tail -15`
+- **Go**: `go build ./... 2>&1`
+- **Python**: `python -m compileall . -q 2>&1 | tail -10`
 
-# Rust
-cargo check 2>&1 | tail -15
-
-# Go
-go build ./... 2>&1
-
-# Python
-python -m compileall . -q 2>&1 | tail -10
-```
-
-Parse build output for:
-- **Errors**: count them
-- **Warnings**: count them
-- **Routes/endpoints**: count if web framework
-- **Build time**: extract if shown
+Parse: errors, warnings, route count (if web), build time.
 
 ### Dependency Health
-```bash
-# Node: outdated + audit
-npm outdated 2>/dev/null | tail -10
-npm audit --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Vulnerabilities: {d.get(\"metadata\",{}).get(\"vulnerabilities\",{})}')" 2>/dev/null
-
-# Rust
-cargo outdated 2>/dev/null | tail -10
-
-# Python
-pip list --outdated 2>/dev/null | tail -10
-```
+- **Node**: `npm outdated 2>/dev/null | tail -15` + `npm audit --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); m=d.get('metadata',{}).get('vulnerabilities',{}); print(f'total={sum(m.values())} critical={m.get(\"critical\",0)} high={m.get(\"high\",0)} moderate={m.get(\"moderate\",0)} low={m.get(\"low\",0)}')" 2>/dev/null`
+- **Rust**: `cargo outdated 2>/dev/null | tail -10`
+- **Python**: `pip list --outdated 2>/dev/null | tail -10`
 
 ### Git Velocity
 ```bash
-# Commits last 7 days
 git log --oneline --since="7 days ago" 2>/dev/null | wc -l
-
-# Commits last 30 days
 git log --oneline --since="30 days ago" 2>/dev/null | wc -l
-
-# Contributors
 git shortlog -sn --no-merges 2>/dev/null | head -5
+
+# Weekly breakdown for sparkline
+for i in 4 3 2 1; do
+  from=$((i*7))
+  to=$(((i-1)*7))
+  c=$(git log --oneline --after="$from days ago" --before="$to days ago" 2>/dev/null | wc -l)
+  echo "week-$i: $c"
+done
+echo "this-week: $(git log --oneline --since='7 days ago' 2>/dev/null | wc -l)"
 ```
 
 ### TODO/FIXME/HACK Scanner
 ```bash
-grep -rn "TODO\|FIXME\|HACK\|XXX\|BLOCKER" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.py" --include="*.rs" --include="*.go" --include="*.java" --include="*.rb" . 2>/dev/null | grep -v node_modules | grep -v .next | head -20
+grep -rn "TODO\|FIXME\|HACK\|XXX\|BLOCKER" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" --include="*.py" --include="*.rs" --include="*.go" --include="*.java" --include="*.rb" --include="*.php" . 2>/dev/null | grep -v node_modules | grep -v .next | grep -v target | head -20
 ```
 
-### Test Status (if test command exists)
-Try to run tests, but with a short timeout. If they take too long, just report the test file count.
+### Test File Count
+```bash
+find . -name "*.test.*" -o -name "*.spec.*" -o -name "*_test.*" | grep -v node_modules | wc -l
+```
 
-## Phase 3: Read or Create Dashboard
+## Phase 3: Read Existing Dashboard
 
-Look for the dashboard file in this order:
-1. `INFRASTRUCTURE_STATUS.md`
-2. `DASHBOARD.md`
-3. `STATUS.md`
-4. If none exist, create `INFRASTRUCTURE_STATUS.md`
+Look for dashboard in this order: `INFRASTRUCTURE_STATUS.md` → `DASHBOARD.md` → `STATUS.md`.
 
-Read the existing file to preserve Change Log, Decision Log, and Learnings (NEVER delete history).
+If found, read it. **PRESERVE all Change Log, Decision Log, and Learnings entries** — these are append-only. Never delete history.
 
-## Phase 4: Detect Project Areas
+If none exists, you'll create `INFRASTRUCTURE_STATUS.md` from scratch.
 
-Based on what you found, identify the relevant tracking areas. NOT every project needs the same areas. Adapt:
+## Phase 4: Detect Project Areas & Calculate %
 
-**SaaS / Web App:**
-Core, Frontend, Backend, API, Auth, Database, Payments, Security, Legal, SEO, Monitoring, Deploy, Testing
+Adapt areas to project type:
 
-**CLI Tool / Library:**
-Core, API Design, Documentation, Testing, CI/CD, Publishing, Error Handling
-
-**Mobile App:**
-Core, UI/UX, Navigation, Auth, API Integration, Push Notifications, App Store, Testing, Analytics
-
-**API / Backend:**
-Core, Endpoints, Auth, Database, Validation, Rate Limiting, Documentation, Testing, Deploy, Monitoring
-
-**Monorepo:**
-Per-package status + overall health
+**SaaS / Web App**: Core, Frontend, Backend, Auth, Database, Payments, Security, Legal, SEO, Monitoring, Deploy, Testing
+**CLI / Library**: Core, API Design, Documentation, Testing, CI/CD, Publishing, Error Handling
+**Mobile**: Core, UI/UX, Navigation, Auth, API Integration, Push Notifications, App Store, Testing
+**API / Backend**: Core, Endpoints, Auth, Database, Validation, Rate Limiting, Documentation, Testing, Deploy
 
 For each area, calculate % based on:
-- Completed checklist items vs total
-- Existence of key files (e.g., has tests? has CI? has deploy config?)
-- Build passing = positive signal
+- Completed vs total checklist items (from existing dashboard)
+- Existence of key files (tests? CI? deploy config? legal pages?)
+- Build passing = positive
 - TODOs/FIXMEs in that area = negative signal
 
-## Phase 5: Calculate Launch Readiness
+### Weighted Launch Readiness
 
 ```
-Overall % = weighted average of all areas
+Overall % = weighted average
 
-Rules:
 - Blocker areas get 2x weight
-- Areas at 100% contribute full weight  
-- Post-launch/roadmap items are EXCLUDED from %
+- 100% areas get full weight
+- Roadmap/post-launch items EXCLUDED
 - Round to nearest 5%
-```
 
 An area is a BLOCKER if:
-- It's required but at 0% (e.g., no tests, no deploy config)
-- It contains security vulnerabilities
-- It prevents the app from running (build fails, missing env vars)
-- It has legal/compliance requirements unmet
+  - Required but at 0%
+  - Has security vulnerabilities
+  - Build fails because of it
+  - Legal/compliance requirements unmet
+```
 
-## Phase 6: Write the Dashboard
+### Progress Bar Format (20 chars)
+```
+[████████████████░░░░]  80%
+```
+█ = filled, ░ = empty
 
-Use this exact structure. Every section must have real data from Phase 2 — no placeholders, no guesses.
+## Phase 5: Write the Dashboard
+
+Write to the file found in Phase 3 (or create new). Use this EXACT structure with real data only:
 
 ```markdown
 # [Project Name] — Project Dashboard
@@ -181,171 +157,102 @@ Use this exact structure. Every section must have real data from Phase 2 — no 
 ## Launch Readiness
 
 \```
-OVERALL        [████████████████░░░░]  80%  →  Production
+OVERALL        [████████████████░░░░]  XX%  →  Production
 \```
 
 \```
-[Area Name]    [████████████████████] 100%  ✅ [one-line status]
-[Area Name]    [████████████████░░░░]  80%  🟡 [what's pending]
-[Area Name]    [████████░░░░░░░░░░░░]  40%  🔴 [what's missing]        ← BLOCKER
+[Area]         [████████████████████] 100%  ✅ [status]
+[Area]         [████████████████░░░░]  80%  🟡 [what's pending]
+[Area]         [████████░░░░░░░░░░░░]  40%  🔴 [what's missing]        ← BLOCKER
 \```
 
-> Weighted: blocker areas count 2x. Roadmap items excluded.
+> Weighted: blocker areas count 2x. Roadmap excluded.
 
-**Blockers:** [list what must be fixed before launch]
+**Blockers:** [what must be fixed]
 
 ---
 
 ## Stack
-
 | Layer | Technology | Version |
-|-------|-----------|---------|
-[detected from package.json / Cargo.toml / etc — real versions only]
-
----
+[real versions from config files]
 
 ## Infrastructure
-
 | Service | Provider | Environment | Status |
-|---------|----------|-------------|--------|
-[detected from config files — only show what actually exists]
-
----
+[only services that actually exist]
 
 ## Build Health
-
 | Metric | Value |
-|--------|-------|
-| Build status | ✅ Pass / 🔴 Fail |
-| Errors | [count] |
-| Warnings | [count] |
-| Routes/Endpoints | [count if web app] |
-| Source files | [count] |
-| Dependencies | [prod] + [dev] |
-| Outdated deps | [count] |
-| Vulnerabilities | [count from audit] |
-
----
+Build status, errors, warnings, routes, source files, deps, outdated, vulns
 
 ## Git Pulse
-
 | Metric | Value |
-|--------|-------|
-| Commits (7d) | [count] |
-| Commits (30d) | [count] |
-| Contributors | [count] |
-| Open branches | [count] |
-| Uncommitted changes | [count files] |
-
----
+Commits 7d/30d, contributors, branches, uncommitted changes
 
 ## Code Health
-
 | Metric | Value |
-|--------|-------|
-| TODOs | [count] |
-| FIXMEs | [count] |
-| HACKs | [count] |
-
-[If any critical ones, list them:]
-| File | Line | Note |
-|------|------|------|
-[top 5 most critical TODOs/FIXMEs]
-
----
+TODOs, FIXMEs, HACKs count + table of top 5 critical items with file:line
 
 ## Security
-
-[Only include if the project has security-relevant code]
-
-| Check | Status |
-|-------|--------|
-[security headers, auth, rate limiting, input validation, etc.]
-
----
+[only if applicable]
+| Check | Status | Detail |
 
 ## Testing
-
 | Metric | Value |
-|--------|-------|
-| Test framework | [detected] |
-| Test files | [count] |
-| Last run | [pass/fail/unknown] |
-
----
+Framework, test files count, last run status
 
 ## Feature Map
-
-### Shipped
-[bullet list of completed features — detected from code + git history]
-
-### Pending
-- [ ] [items from TODOs, open issues, missing configs]
-
-### Roadmap
-- [ ] [future items, not counted in launch %]
-
----
+### Shipped — bullet list
+### Pending — [ ] checklist
+### Roadmap — [ ] future items (excluded from %)
 
 ## Velocity
-
 \```
 Commits/week:  ██████████████░░░░░░  [N] commits
-Trend:         [↑ accelerating / → steady / ↓ slowing]
+Trend:         ↑ accelerating / → steady / ↓ slowing
 \```
 
-[If enough history:]
 \```
-4 weeks ago    ████████░░░░░░░░░░░░  [N]
-3 weeks ago    ██████████░░░░░░░░░░  [N]
-2 weeks ago    ████████████░░░░░░░░  [N]
-Last week      ██████████████░░░░░░  [N]
+4 weeks ago    [bar]  [N]
+3 weeks ago    [bar]  [N]
+2 weeks ago    [bar]  [N]
+Last week      [bar]  [N]
 \```
-
----
 
 ## Change Log
-
 | Date | Action | Impact | Area |
-|------|--------|--------|------|
-[APPEND only — never delete previous entries]
+APPEND new entry
 
 ## Decision Log
-
 | Date | Decision | Rationale |
-|------|----------|-----------|
-[APPEND only]
+APPEND if new decision
 
 ## Learnings
-
 | Date | Learning | Context |
-|------|----------|---------|
-[APPEND only]
+APPEND if something was learned
 ```
 
-## Phase 7: Update Supporting Files
+## Phase 6: Update Supporting Files
 
-If these exist, update them to match:
-- `PROGRESS.md` — sync %, update progress bars, append change log
+- `PROGRESS.md` — sync %, append change log, update metrics
 - `DASHBOARD.md` — sync if not a redirect
 - `TODO.md` / `ROADMAP.md` — mark completed items
 
-## Phase 8: Summary Output
+## Phase 7: Terminal Summary
 
-After updating files, output this to the terminal:
+Output this after updating:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  /track complete
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
- Launch:  [████████████████░░░░]  80%
+ Launch:  [████████████████░░░░]  XX%
  Build:   ✅ Pass (0 errors)
- Deps:    26 prod · 23 dev · 2 outdated · 0 vulns
- Git:     14 commits/7d · 3 branches · 2 uncommitted
- Health:  4 TODOs · 1 FIXME · 0 BLOCKERs
+ Deps:    N prod · N dev · N outdated · N vulns
+ Git:     N commits/7d · N branches · N uncommitted
+ Health:  N TODOs · N FIXMEs · N BLOCKERs
 
- Changed: INFRASTRUCTURE_STATUS.md, PROGRESS.md
+ Changed: [files updated]
  Next:    [highest priority pending item]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -357,6 +264,6 @@ After updating files, output this to the terminal:
 1. **Real data only** — every number comes from a command, not a guess
 2. **Never delete history** — logs are append-only
 3. **Adapt to the project** — a Rust CLI tracks different things than a SaaS app
-4. **Honest percentages** — blockers weigh 2x, roadmap items excluded
-5. **30-second scan** — the dashboard must be readable at a glance
-6. **Zero config** — works on first run with no setup
+4. **Honest percentages** — blockers weigh 2x, roadmap excluded
+5. **30-second scan** — readable at a glance
+6. **Zero config** — works on first run, any project, any language
