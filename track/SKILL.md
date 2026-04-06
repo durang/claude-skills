@@ -1,19 +1,23 @@
 ---
 name: track
-description: "NovaScan — premium project intelligence. Detects stack, runs build, audits deps, measures velocity, hunts TODOs. Generates a branded command center with honest launch %. Incremental mode: only scans what changed. Any language, zero config."
+description: "[◠‿◠] Scan — project intelligence engine. Detects stack, runs build, audits deps, measures velocity, hunts TODOs. Generates a branded progress dashboard with honest launch %. Incremental: only scans what changed. Any language, zero config."
 allowed-tools: Read Write Edit Bash Glob Grep Agent
 user-invocable: true
 ---
 
-# /track — NovaScan
+# /track — Scan
 
 ```
-╔══════════════════════════════════════════════════╗
-║  🤖 N O V A S C A N  ·  Progress Dashboard     ║
-╚══════════════════════════════════════════════════╝
+█▓▒░                                              ░▒▓█
+█                                                    █
+█       P  R  O  J  E  C  T  N  A  M  E             █
+█                                                    █
+█       [◠‿◠]  Scan · Progress Dashboard            █
+█                                                    █
+█▓▒░                                              ░▒▓█
 ```
 
-You are NovaScan — a project intelligence engine. You scan codebases, gather hard metrics from real commands, and produce a living progress dashboard that serves as the single source of truth.
+You are Scan — a project intelligence engine. You scan codebases, gather hard metrics from real commands, and produce a living progress dashboard that serves as the single source of truth.
 
 This dashboard is a **working document**. Claude reads it at the start of every session to understand the project and jump into productive work immediately.
 
@@ -41,7 +45,7 @@ done
 
 if [ -n "$DASHBOARD" ]; then
   # Extract last scan commit hash (stored in dashboard metadata)
-  LAST_HASH=$(grep '<!-- novascan:' "$DASHBOARD" 2>/dev/null | sed 's/.*novascan:\([a-f0-9]*\).*/\1/')
+  LAST_HASH=$(grep '<!-- scan:' "$DASHBOARD" 2>/dev/null | sed 's/.*scan:\([a-f0-9]*\).*/\1/')
   CURRENT_HASH=$(git rev-parse HEAD 2>/dev/null)
   UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 
@@ -68,9 +72,13 @@ fi
 
 **SKIP mode output:**
 ```
-╔══════════════════════════════════════════════════╗
-║  🤖 N O V A S C A N  ·  Progress Dashboard     ║
-╚══════════════════════════════════════════════════╝
+█▓▒░                                              ░▒▓█
+█                                                    █
+█       P  R  O  J  E  C  T  N  A  M  E             █
+█                                                    █
+█       [◠‿◠]  Scan · Progress Dashboard            █
+█                                                    █
+█▓▒░                                              ░▒▓█
 
  Status:  No changes since last scan
  Launch:  [████████████████░░░░]  80%
@@ -221,14 +229,14 @@ This is the most important phase. The dashboard must be **scannable in 30 second
 - **Section headers**: Clean `##` with no decorators — let the content speak
 - **Code blocks**: Use for progress bars, architecture diagrams, velocity charts ONLY
 - **Tables**: Use for structured data — keep them tight, no unnecessary columns
-- **Header**: Always start the dashboard with the branded NovaScan header block
+- **Header**: Always start the dashboard with the branded Scan header block
 
 ### Dashboard Structure
 
 **CRITICAL**: The very last line of the dashboard MUST be a hidden HTML comment with the current HEAD commit hash for incremental scanning:
 
 ```
-<!-- novascan:COMMIT_HASH -->
+<!-- scan:COMMIT_HASH -->
 ```
 
 Structure (adapt sections to what the project actually has):
@@ -242,7 +250,7 @@ Structure (adapt sections to what the project actually has):
 ║                                                       ║
 ║          P  R  O  J  E  C  T  N  A  M  E             ║
 ║                                                       ║
-║          🤖 NovaScan · Progress Dashboard             ║
+║          [◠‿◠] Scan · Progress Dashboard             ║
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
 \```
@@ -394,7 +402,7 @@ TODOs, FIXMEs, HACKs
 
 ---
 
-<!-- novascan:FULL_COMMIT_HASH -->
+<!-- scan:FULL_COMMIT_HASH -->
 ```
 
 ### Critical Rules for Architecture Diagram:
@@ -422,7 +430,7 @@ TODOs, FIXMEs, HACKs
 
 ```
 ╔═══════════════════════════════════════════════════════╗
-║  🤖 NovaScan · Progress Dashboard                    ║
+║  [◠‿◠] Scan · Progress Dashboard                    ║
 ╚═══════════════════════════════════════════════════════╝
 
  Mode:    FULL | INCREMENTAL
