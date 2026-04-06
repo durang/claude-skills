@@ -353,6 +353,22 @@ TODOs, FIXMEs, HACKs
 | Metric | Value |
 [If SaaS/commercial — pricing, audience, differentiator. Keep tight]
 
+## Active Tasks
+
+Tasks added by the user ("nos falta X", "necesitamos Y", "agrega Z"). Each task has subtasks tagged `← auto` (Claude can do it) or `← user` (needs credentials/access).
+
+### [Task Name]                              [Area] · +X%
+- [ ] Subtask description                      ← auto
+- [ ] Subtask that needs credentials           ← user
+- [ ] Another subtask                          ← auto
+> 0/3 · Next: [what's blocking or what to do first]
+
+**When the user says "sigamos"/"avancemos"/"let's go":** find all `← auto` subtasks across active tasks and start executing the highest-impact ones immediately.
+
+**When all subtasks are done:** move the task title to Shipped, remove from Active Tasks, and recalculate launch %.
+
+---
+
 ## Features
 
 ### Shipped
@@ -394,6 +410,15 @@ TODOs, FIXMEs, HACKs
 - If the project has separate frontend/backend, show the boundary
 - Keep it under 30 lines — readable at a glance
 - Update ONLY if structural changes detected (new services, new layers)
+
+### Critical Rules for Active Tasks:
+- When the user mentions a missing feature ("nos falta X", "we need X", "agrega X"), create a task in Active Tasks
+- Analyze the project stack to auto-generate accurate subtasks (e.g., for "Gmail login" in a Supabase project: configure provider, add env vars, create button, handle callback, test)
+- Tag each subtask `← auto` if Claude can do it without credentials, or `← user` if it needs dashboard access, API keys, or manual verification
+- Show progress as `done/total` at the bottom of each task
+- Show which area the task affects and estimated % impact
+- When running `/track`, check if any `← auto` subtasks match completed code (grep for components, routes, config) and mark them done
+- When all subtasks complete, move to Shipped and update launch %
 
 ### Critical Rules for Next Actions:
 - List the 3 highest-impact things to do
