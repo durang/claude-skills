@@ -1,27 +1,21 @@
-# /track — Zero-Config Project Radar for Claude Code
+# /track — [◠‿◠] Scan · Progress Dashboard
 
-One command. Any language. Real metrics. No setup.
+One command. Any project. Real metrics. Zero config.
 
 ```
 /track
 ```
 
-That's it. It scans your entire project, detects your stack, runs your build, audits dependencies, measures git velocity, hunts TODOs — and generates a visual dashboard with honest launch readiness %.
+That's it. It auto-detects your stack, runs your build, audits dependencies, measures git velocity, profiles your coding habits, tracks tasks with subtask ownership, hunts TODOs — and generates a branded, visual progress dashboard with honest launch readiness %.
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- /track complete
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
- Launch:  [███████████████░░░░░]  75%
- Build:   ✅ Pass (0 errors)
- Deps:    26 prod · 23 dev · 15 outdated · 4 high vulns
- Git:     76 commits/7d · 1 branch · 6 uncommitted
- Health:  1 TODO · 0 FIXMEs · 0 BLOCKERs
-
- Changed: INFRASTRUCTURE_STATUS.md
- Next:    Configure production payment integration
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+╔═══════════════════════════════════════════════════════╗
+║                                                       ║
+║          Y  O  U  R  P  R  O  J  E  C  T             ║
+║                                                       ║
+║          [◠‿◠]  Scan · Progress Dashboard             ║
+║                                                       ║
+╚═══════════════════════════════════════════════════════╝
 ```
 
 ## Install (10 seconds)
@@ -32,116 +26,190 @@ mkdir -p ~/.claude/skills/track && curl -sL https://raw.githubusercontent.com/du
 
 Done. Open [Claude Code](https://claude.ai/code) in any project and type `/track`.
 
-## Usage
-
-```bash
-# Scan current state — auto-detects everything
-/track
-
-# Log what you just did, then scan
-/track Added authentication with Supabase
-
-# After fixing a bug
-/track Fixed memory leak in WebSocket handler
-
-# After a big refactor
-/track Migrated from Express to Hono, restructured API layer
-```
+---
 
 ## What You Get
 
-### Visual progress bars with honest percentages
+### Branded header with your project name
+
+Every dashboard starts with your project name displayed large in spaced letters inside a clean box-drawing border. Your project feels like a product from day one.
+
+### Launch readiness with honest math
 
 ```
-OVERALL        [███████████████░░░░░]  75%  →  Production
+OVERALL        [████████████████░░░░]  80%  →  Production
 
 Core Platform  [████████████████████] 100%  ✅ Ship-ready
 Auth/Users     [████████████████████] 100%  ✅ Magic link + password
 AI Chat        [████████████████████] 100%  ✅ DeepSeek V3 integrated
 Payments       [████████████░░░░░░░░]  60%  ⚠️ Test mode only         ← BLOCKER
-Security       [███████████████░░░░░]  75%  🟡 2 items left
+Security       [█████████████████░░░]  85%  🟡 2 items left
 Deploy Prod    [██████████░░░░░░░░░░]  50%  🔴 Env vars + domain       ← BLOCKER
 ```
 
-> Blocker areas count **2x** in the weighted average. Roadmap items are excluded. Your % reflects what actually matters for shipping.
+Blocker areas count **2x** in the weighted average. Roadmap items are excluded. Your % reflects what actually matters for shipping — not optimism.
 
-### Git velocity sparklines
+### Active Tasks with ownership tracking
 
-```
-Commits/week:  ███████████████████░  76 commits
-Trend:         ↑ accelerating
-
-4 weeks ago    ░░░░░░░░░░░░░░░░░░░░   0
-3 weeks ago    ░░░░░░░░░░░░░░░░░░░░   0
-2 weeks ago    ██████████████░░░░░░  54
-Last week      ███████████████████░  76
-```
-
-### Dependency audit
+When you tell Claude "we need Gmail login" or "nos falta analytics", it creates a task with auto-generated subtasks tagged by who can do them:
 
 ```
-| Dependencies | 26 prod + 23 dev |
-| Outdated     | 15               |
-| Vulns        | 14 total (4 high, 1 moderate, 2 low) |
+### Gmail Login                              Auth · +5%
+- [ ] Configure Google OAuth in Supabase       ← user
+- [ ] Add provider env vars to Vercel          ← user
+- [ ] Create Google sign-in button             ← auto
+- [ ] Handle OAuth callback route              ← auto
+- [ ] Update authState for Google provider     ← auto
+- [ ] Test end-to-end                          ← user
+> 0/6 · Next: needs OAuth config first
 ```
 
-### Code health scanner
+- `← auto` = Claude can execute it right now without your credentials
+- `← user` = needs your dashboard access, API keys, or manual verification
 
-Finds every `TODO`, `FIXME`, `HACK`, and `BLOCKER` with file + line number:
+**When you say "let's go" / "sigamos" / "avancemos"** — Claude reads the dashboard, finds all `← auto` subtasks, and starts coding the highest-impact ones immediately. No menus. No "what would you like to do?" — just execution.
+
+### Visual charts from real git data
+
+**Daily commit activity:**
+```
+                    Daily Commits (last 7 days)
+  Tue 31  ████████████████████  20
+  Wed 01  ██████               6
+  Thu 02  ██████████████████   18
+  Fri 03  █████                5
+  Sat 04  ████                 4
+  Sun 05  ███████              7
+  Mon 06  █████                5   ← today
+```
+
+**Your peak coding hours:**
+```
+                    Peak Hours (when you code)
+  4pm-8pm   ████████████████████  28 commits   ← peak
+  midnight  ████████████████░░░░  21 commits
+  9pm-11pm  ██████████████░░░░░░  16 commits
+```
+
+**Codebase breakdown by language:**
+```
+ TypeScript    ██████████████░░░░░░  14,498 lines
+ TSX (React)   ████████████████████  22,669 lines
+ CSS            █░░░░░░░░░░░░░░░░░░   1,648 lines
+               ─────────────────────
+ Total                                38,815 lines
+```
+
+**Commit type distribution:**
+```
+  fix     █████████████████████████████████████████████  45%
+  feat    ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░  20%
+  chore   ████████████████████████████░░░░░░░░░░░░░░░░  35%
+```
+
+**Progress timeline — your journey to launch:**
+```
+                    Launch % Over Time
+  Mar 26  ░░░░░░░░░░░░░░░░░░░░   0%   Project created
+  Mar 29  ██████████░░░░░░░░░░  50%   Core + Auth
+  Mar 30  ██████████████░░░░░░  70%   UI + AI Chat
+  Apr 05  ███████████████░░░░░  75%   Security hardening
+  Apr 06  ████████████████░░░░  80%   Vulns fixed + Tasks
+```
+
+**Milestone map:**
+```
+  ◉────◉────◉────◉────○────○────○────○
+  10   25   50   75   85   90   95  100
+                       ↑
+                   you are here
+```
+
+### Incremental scanning — saves tokens
+
+The dashboard stores the last scanned commit hash. On re-scan:
+
+| Mode | When | What runs | Savings |
+|------|------|-----------|---------|
+| **FULL** | First scan | Everything | Baseline |
+| **INCREMENTAL** | New commits since last scan | Build, audit, velocity, health | ~50% |
+| **SKIP** | Zero changes | Nothing — just reports status | ~95% |
+
+### Architecture diagram
+
+Auto-generated ASCII diagram showing your real project structure:
 
 ```
-| File                                     | Line | Note                                    |
-| app/api/webhooks/lemonsqueezy/route.ts   | 231  | TODO: Map real variant IDs              |
+                    ┌──────────────────┐
+                    │   Vercel (CDN)   │
+                    └────────┬─────────┘
+                             │
+               ┌─────────────┴──────────────┐
+               │    Next.js 16 App Router    │
+               └──┬──────────┬──────────┬───┘
+                  │          │          │
+           ┌──────┘          │          └──────┐
+    ┌──────┴──────┐   ┌──────┴──────┐   ┌──────┴──────┐
+    │    Pages    │   │  API Routes │   │    Libs     │
+    └──────┬──────┘   └──────┬──────┘   └──────┬──────┘
+           │                 │                  │
+    ┌──────┘    ┌────────────┼────────────┐     │
+    ▼           ▼            ▼            ▼     ▼
+ Zustand    Supabase    Lemon Squeezy  DeepSeek  Web Audio
 ```
 
-### Build health, infrastructure, security posture, legal compliance, testing status, feature map, change/decision/learning logs
+### Everything else
 
-All in one markdown file. Updated every time you run `/track`.
+- **Build health** — pass/fail, errors, warnings, route count
+- **Dependency audit** — outdated count, vulnerability scan
+- **Code health** — every TODO, FIXME, HACK with file:line
+- **Security posture** — headers, rate limiting, auth, CSRF, audit
+- **Legal compliance** — privacy, terms, disclaimers, GDPR
+- **Business context** — pricing, audience, model
+- **Feature map** — shipped, pending, roadmap
+- **Logs** — changes, decisions, learnings (append-only, never deleted)
+
+---
+
+## Usage
+
+```bash
+# Auto-detect everything and scan
+/track
+
+# Tell it what you just did, then scan
+/track Added Gmail authentication
+
+# After a big session
+/track Refactored API layer, added rate limiting, fixed 14 vulnerabilities
+
+# Ask what's next — it reads the dashboard and tells you
+que sigue?
+```
 
 ## Works With Everything
 
-| Stack | How It Detects | What It Checks |
-|-------|---------------|----------------|
-| **Node / Next.js / React / Vue** | `package.json` | `npm run build`, `npm audit`, `npm outdated`, routes |
-| **Rust** | `Cargo.toml` | `cargo check`, `cargo outdated`, compile errors |
-| **Go** | `go.mod` | `go build ./...`, modules, test coverage |
-| **Python** | `requirements.txt` / `pyproject.toml` | `compileall`, `pip audit`, `pip outdated` |
-| **Ruby** | `Gemfile` | `bundle audit`, gems |
-| **Java / Kotlin** | `pom.xml` / `build.gradle` | build status, dependencies |
-| **PHP** | `composer.json` | `composer audit`, packages |
-| **Mobile** | Xcode / Android manifests | build, signing, store readiness |
+| Stack | Detection | Checks |
+|-------|-----------|--------|
+| **Node / Next.js / React / Vue** | `package.json` | build, audit, outdated, routes |
+| **Rust** | `Cargo.toml` | cargo check, cargo outdated |
+| **Go** | `go.mod` | go build, modules |
+| **Python** | `requirements.txt` / `pyproject.toml` | compileall, pip audit |
+| **Ruby** | `Gemfile` | bundle audit |
+| **Java / Kotlin** | `pom.xml` / `build.gradle` | build, deps |
+| **PHP** | `composer.json` | composer audit |
 | **Monorepo** | Workspaces / Turborepo / Nx | per-package + overall |
 
 Auto-detects: Vercel, Docker, AWS, Fly, Netlify, Railway, Supabase, Prisma, Firebase, GitHub Actions, GitLab CI, Jest, Vitest, Playwright, pytest.
 
-## How It Thinks
-
-`/track` adapts what it tracks to your project type:
+## How It Adapts
 
 | Project Type | Areas Tracked |
 |-------------|---------------|
 | **SaaS / Web App** | Core, Frontend, Auth, Payments, Security, Legal, SEO, Monitoring, Deploy |
-| **CLI Tool / Library** | Core, API Design, Docs, Testing, CI/CD, Publishing |
+| **CLI / Library** | Core, API Design, Docs, Testing, CI/CD, Publishing |
 | **Mobile App** | Core, UI/UX, Auth, Push Notifications, App Store, Analytics |
 | **API / Backend** | Endpoints, Auth, Database, Rate Limiting, Docs, Deploy |
-
-### Honest Math
-
-```
-Overall % = weighted average of all areas
-
-Blocker areas    → 2x weight (they gate your launch)
-100% areas       → full weight
-Roadmap items    → excluded (not needed to ship)
-```
-
-Result: your percentage reflects **reality**, not optimism.
-
-## What It Creates
-
-On first run, `/track` creates `INFRASTRUCTURE_STATUS.md` in your project root. On subsequent runs, it updates the same file — appending to logs, never deleting history.
-
-It also syncs `PROGRESS.md`, `DASHBOARD.md`, `TODO.md`, or `ROADMAP.md` if they exist.
 
 ## FAQ
 
@@ -158,7 +226,10 @@ Creates one from scratch on first run. Zero setup.
 Commit the dashboard to your repo. Everyone sees the same truth.
 
 **Can I use it on multiple projects?**
-Yes. It's installed globally at `~/.claude/skills/track/`. Works in any directory.
+Yes. Installed globally at `~/.claude/skills/track/`. Works in any directory.
+
+**Does it waste tokens on re-scans?**
+No. Incremental mode only re-checks what changed since the last commit hash. If nothing changed, it skips entirely (~95% savings).
 
 ## Alternative Install
 
@@ -173,8 +244,8 @@ cd ~/claude-skills && git pull
 
 ## Requirements
 
-- [Claude Code](https://claude.ai/code) (CLI, desktop app, VS Code, JetBrains, or web)
-- A git repo (for velocity tracking)
+- [Claude Code](https://claude.ai/code) (CLI, desktop, VS Code, JetBrains, or web)
+- A git repo
 - That's it
 
 ## License
