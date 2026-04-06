@@ -351,8 +351,20 @@ Structure (adapt sections to what the project actually has):
 ╚═══════════════════════════════════════════════════════╝
 \```
 
-> Last sync: YYYY-MM-DD · `COMMIT_HASH_SHORT`
+> Last sync: YYYY-MM-DD HH:MM · `COMMIT_HASH_SHORT`
 > Launch: XX% → YY% (+Z%)
+
+---
+
+## Recent Activity
+
+| When | What | Impact |
+|------|------|--------|
+| HH:MM | [last completed action] | [area affected or % change] |
+| HH:MM | [previous action] | [impact] |
+| HH:MM | [earlier action] | [impact] |
+
+> Show last 5 actions from the current day. Append each time something is completed (code, fix, feature, config). Include timestamp (HH:MM), short description, and impact. This gives the user an instant "what happened today" view.
 
 ---
 
@@ -520,6 +532,33 @@ TODOs, FIXMEs, HACKs
 
 | Metric | Value |
 [If SaaS/commercial — pricing, audience, differentiator. Keep tight]
+
+## App Blueprint
+
+> Auto-generated from real code analysis. This section is the complete portrait of what the app does — enough to understand it, explain it to someone, or rebuild it.
+
+### What it does
+[One paragraph: what the product is, who it's for, what problem it solves]
+
+### User Flows
+| Flow | Route | Description |
+[Every user-facing flow — detected from page routes and components]
+
+### Roles & Permissions
+| Role | Can do | How detected |
+[Every role the app supports — detected from auth logic, middleware, tier checks]
+
+### Data Model
+| Entity | Storage | Key fields |
+[What data the app stores and where — detected from types, schemas, localStorage keys, DB calls]
+
+### API Surface
+| Endpoint | Method | Auth | Purpose |
+[Every API route — detected from app/api/ directory]
+
+> **Update rules:** Only update App Blueprint when structural changes are detected (new routes, new roles, new data entities). Don't rewrite on every scan.
+
+---
 
 ## Goals
 
