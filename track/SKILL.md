@@ -35,6 +35,40 @@ The dashboard must stay current WITHOUT requiring `/track` every time. Follow th
 **When `/track` runs and nothing changed since last scan hash:**
 - SKIP mode — report status and exit. No wasted tokens.
 
+### Kickstart Mode (new projects)
+
+When `/track` runs in a directory with **no existing dashboard** AND **minimal or no code** (< 5 source files, no build config):
+
+1. Ask: "What are you building?" (one question only)
+2. From the answer, auto-generate:
+   - `package.json` or equivalent with the right stack
+   - Basic project structure (pages, API routes, libs)
+   - `CLAUDE.md` with project briefing + conventions
+   - `INFRASTRUCTURE_STATUS.md` with the full dashboard (starting at 0%)
+   - Area breakdown adapted to the project type
+   - Initial Goals based on what the user described
+3. Run the first FULL scan on the generated structure
+4. Output: "Project scaffolded. Dashboard at 0%. Say 'avancemos' to start building."
+
+This turns `/track` into a project bootstrapper — from idea to structured dashboard in one command.
+
+If the directory already has code and a dashboard → normal scan mode. Kickstart only activates on empty/new projects.
+
+### Post-Deploy Verification
+
+After any `git push` that includes code changes (not just dashboard updates):
+
+1. Wait 30 seconds for Vercel to build
+2. Check if the deploy URL responds with HTTP 200:
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}" https://PROJECT_URL 2>/dev/null
+   ```
+3. If 200 → add to Recent Activity: "Deploy verified ✅"
+4. If not 200 → warn: "Deploy may have failed — check Vercel dashboard"
+5. Extract the project URL from `.vercel/project.json` or Vercel CLI
+
+This is optional and silent — only runs if a deploy URL is detectable. Never blocks the user's workflow.
+
 ---
 
 ## Goal Engine — Intent Detection & Orchestration
