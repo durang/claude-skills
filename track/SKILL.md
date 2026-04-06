@@ -299,18 +299,71 @@ Build status, errors, warnings, routes, source files
 | Metric | Value |
 Prod, dev, outdated, vulns — each on its own row
 
+### Codebase
+
+Show lines of code by language with proportional bar chart:
+\```
+ TypeScript    ██████████████░░░░░░  14,498 lines
+ TSX (React)   ████████████████████  22,669 lines
+ CSS            █░░░░░░░░░░░░░░░░░░   1,648 lines
+               ─────────────────────
+ Total                                38,815 lines
+\```
+
+Also show top 5 largest files in a table.
+
 ### Velocity
 
+Generate ALL of these charts from real git data:
+
+**Daily commits (last 7 days)** — bar per day with count:
 \```
- 4w ago  ░░░░░░░░░░░░░░░░░░░░   0
- 3w ago  ░░░░░░░░░░░░░░░░░░░░   0
- 2w ago  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰░░░░  54
- 1w ago  ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰  82
-                    Trend: △ accelerating
+                    Daily Commits (last 7 days)
+  Mon 31  ████████████████████  20
+  Tue 01  ██████               6
+  ...
 \```
 
-| Metric | Value |
-Commits 7d, 30d, contributors, branches, uncommitted
+**Weekly trend** — 4-week sparkline:
+\```
+                    Weekly Trend
+  4w ago  ░░░░░░░░░░░░░░░░░░░░   0
+  3w ago  ████████████████████  33
+  ...
+\```
+
+**Peak hours** — from `git log --format="%ad" --date=format:"%H"`:
+\```
+                    Peak Hours (when you code)
+  4pm-8pm   ████████████████████  28 commits   ← peak
+  ...
+\```
+
+**Commit types** — parse prefixes (fix:, feat:, chore:, etc.):
+\```
+  fix     █████████████████████████████████████████████  45%
+  feat    ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░  20%
+  chore   ████████████████████████████░░░░░░░░░░░░░░░░  35%
+\```
+
+**Progress timeline** — launch % at each major milestone:
+\```
+                    Launch % Over Time
+  Mar 26  ░░░░░░░░░░░░░░░░░░░░   0%   Project created
+  Apr 05  ███████████████░░░░░  75%   Security + Legal
+  Apr 06  ████████████████░░░░  80%   Vulns + Tasks
+\```
+
+**Milestone map** — visual position on the road to 100%:
+\```
+                    Milestone Map
+  ◉────◉────◉────◉────○────○────○────○
+  10   25   50   75   85   90   95  100
+                       ↑
+                   you are here
+\```
+
+Also show a summary table: total commits, 7d, 30d, lines changed, contributors, branches, uncommitted.
 
 ### Code Health
 
