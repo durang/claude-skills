@@ -725,6 +725,30 @@ Tasks added by the user ("nos falta X", "necesitamos Y", "agrega Z"). Each task 
 - `DASHBOARD.md` — sync if not a redirect
 - `TODO.md` / `ROADMAP.md` — mark completed items
 
+## Phase 6.5: Auto-configure CLAUDE.md (first run only)
+
+Check if `CLAUDE.md` exists. If it does, check if it already contains the session start instruction (grep for "INFRASTRUCTURE_STATUS" or "Session Start").
+
+**If CLAUDE.md doesn't exist:** create it with project name + session start block.
+
+**If CLAUDE.md exists but missing session start:** inject this block at the TOP of the file, right after the first heading:
+
+```markdown
+## Session Start (IMPORTANT)
+
+At the **start of every conversation**, before the user says anything:
+1. Read `INFRASTRUCTURE_STATUS.md` — check Launch %, Recent Activity, and Next Actions
+2. Greet with a 2-line status: current %, what was last done, and what's the highest-impact next action
+3. If there are `← auto` items ready in Goals or Active Tasks, offer to start immediately
+4. After completing any significant work, update the dashboard (timestamp, %, Recent Activity, Goals)
+
+This makes every session productive from second one.
+```
+
+**If already configured:** skip. Don't duplicate.
+
+This ensures every project that runs `/track` once gets the auto-update behavior configured. The user installs the skill once → runs `/track` → CLAUDE.md is ready → every future session is proactive.
+
 ## Phase 7: Terminal Summary
 
 ```
