@@ -450,6 +450,53 @@ OVERALL        [████████████████░░░░]  8
 
 ---
 
+## Quick Start
+
+Auto-detect the dev command and URLs from the project's config files:
+
+\```
+  Local:       [detected dev command — e.g. "cd web && npm run dev"]
+               → http://localhost:[port]
+
+  Production:  [detected deploy URL from .vercel/project.json, vercel.json, or Vercel CLI]
+
+  Deploy:      [detected deploy command — e.g. "vercel --prod"]
+\```
+
+**How to detect:**
+- Dev command: read `package.json` scripts → find `dev` script → build the `cd [dir] && npm run dev` command
+- Production URL: run `vercel ls --yes 2>/dev/null | head -5` or read `.vercel/project.json` for project name → `https://[name].vercel.app`
+- For non-Vercel: check `fly.toml`, `netlify.toml`, `Dockerfile`, `railway.json`
+- Deploy command: Vercel → `vercel --prod`, Fly → `fly deploy`, Netlify → `netlify deploy --prod`
+
+## Env Health
+
+Compare `.env.local.example` (or `.env.example`) vs `.env.local` (or `.env`). Show what's configured and what's missing:
+
+\```
+  ✅ NEXT_PUBLIC_SUPABASE_URL         .env.local
+  ✅ NEXT_PUBLIC_SUPABASE_ANON_KEY    .env.local
+  ✅ DEEPSEEK_API_KEY                 .env.local
+  🔴 LEMONSQUEEZY_WEBHOOK_SECRET     Missing — get from LS dashboard → Webhooks
+  🔴 SENTRY_DSN                      Missing — get from sentry.io → Project settings
+\```
+
+Also check Vercel env vars if CLI is available:
+\```bash
+vercel env ls 2>/dev/null
+\```
+
+Compare local vs production — flag mismatches:
+\```
+  NEXT_PUBLIC_ADMIN_EMAIL    Local: ✅    Vercel: ✅
+  SUPABASE_SERVICE_ROLE_KEY  Local: 🔴    Vercel: ✅   ← only in production
+  SENTRY_DSN                 Local: 🔴    Vercel: 🔴   ← missing everywhere
+\```
+
+**Why this matters:** prevents the "login doesn't work locally" problem — catches missing env vars before the user discovers them broken.
+
+---
+
 ## Architecture
 
 \```
