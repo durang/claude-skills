@@ -393,18 +393,35 @@ This is the most important phase. The dashboard must be **scannable in 30 second
 
 Structure — these sections are **REQUIRED** in every dashboard (never skip):
 
-1. Header (project name)
-2. Launch Readiness (% + bars + blockers + next actions)
-3. Recent Activity (last 5 actions)
-4. Quick Start (local dev command + production URL + deploy command)
-5. Env Health (every env var checked ✅/🔴 for local AND production)
-6. Architecture (diagram + entry points + external services)
-7. Metrics (build + deps + codebase + velocity + code health)
-8. Stack + Infrastructure + Security + Legal + Docs
-9. Business + App Blueprint (if SaaS/commercial)
-10. Goals + Active Tasks
-11. Features (shipped/pending/roadmap)
-12. Logs (changes/decisions/learnings)
+1. **Header** — project name in spaced letters + `[◠‿◠] Scan · Progress Dashboard`
+2. **Launch Readiness** — OVERALL % bar + per-area bars + blockers + next 3 actions
+3. **Recent Activity** — last 5 timestamped actions today
+4. **Quick Start** — local dev command + production URL + deploy command
+5. **Env Health** — every env var ✅/🔴 for local AND production side-by-side
+6. **Architecture** — ASCII diagram + entry points (pages/libs/APIs grouped) + external services
+7. **Metrics** — build status + dependencies + codebase (lines by language) + velocity (daily/weekly/peak hours/commit types/timeline/milestone map) + code health (TODOs)
+8. **Stack** — tech by layer in box-draw format
+9. **Infrastructure** — services with dot-aligned status
+10. **Security** — checklist with completion count (X/Y)
+11. **Testing** — framework, files, status
+12. **Legal** — documents with completion count (X/Y)
+13. **Docs** — project files with completion count (X/Y)
+14. **Business** — pricing tiers in box-draw format (if SaaS/commercial)
+15. **App Blueprint** — what it does + user journey diagram + roles hierarchy + data model boxes + API surface
+16. **Goals** — 🎯 prioritized action plans from user intent
+17. **Active Tasks** — subtasks with `← auto`/`← user` + size S/M/L
+18. **Features** — shipped / pending / roadmap
+19. **Logs** — changes + decisions + learnings (append-only)
+
+**The order above is FIXED.** Every dashboard must follow this exact sequence. Never reorder, never skip.
+
+**Adaptive rules:**
+- If a section has no data → write "Not detected" (don't skip the section)
+- If the project is NOT SaaS → Business and App Blueprint can say "N/A — CLI tool" or similar
+- If no hosting platform detected → Env Health only shows local vars, Quick Start only shows local dev
+- Security/Legal/Docs show completion counts (X/Y) — adapt Y to what the project actually needs (a CLI tool needs fewer legal docs than a SaaS)
+- Architecture diagram adapts to the real stack — don't force a frontend/backend split on a single-file script
+- Metrics velocity charts always show real data — if project has 3 commits, show 3 commits, not empty charts
 
 Adapt the CONTENT of each section to the project, but NEVER skip a section. If a section has no data, write "Not detected" instead of omitting it.
 
@@ -663,27 +680,50 @@ TODOs, FIXMEs, HACKs
 
 ## Stack
 
-| Layer | Tech | Version |
-[real versions from config files]
+Use box-draw format grouped by layer:
+\```
+  ┌─ Frontend ──────────────────────────────────────────┐
+  │  [frameworks + versions]                            │
+  ├─ Backend ───────────────────────────────────────────┤
+  │  [services + versions]                              │
+  ├─ Testing ───────────────────────────────────────────┤
+  │  [test frameworks + versions]                       │
+  └─────────────────────────────────────────────────────┘
+\```
 
 ## Infrastructure
 
-| Service | Provider | Status |
-[only what actually exists — combine Environment into Status column]
+Use dot-aligned format:
+\```
+  Service ·········· Provider           ✅/⚠️/🔴  Status detail
+\```
 
-## Security
+## Security — X/Y
 
-| Check | Status |
-[combine Status + Detail into one column for cleaner look]
+Use dot-aligned format with completion count in header:
+\```
+  ✅ Check name ········ Detail
+  🔴 Missing check ···· What's needed
+\```
 
 ## Testing
 
 | Metric | Value |
+Framework, test files count, last run status
 
-## Legal
+## Legal — X/Y
 
-| Document | Status |
-[route + status combined]
+Use dot-aligned format with completion count in header:
+\```
+  ✅ Document ·········· Route or status
+  🔴 Missing doc ······ What's needed
+\```
+
+## Docs — X/Y
+
+\```
+  ✅ Present docs     🔴 Missing docs
+\```
 
 ---
 
