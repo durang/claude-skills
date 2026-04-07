@@ -330,6 +330,93 @@ Read key config files and entry points to understand:
 - External service integrations (auth, payments, AI, email, storage)
 - Data flow patterns
 
+### SEO Audit (auto-activates when Launch % >= 90%)
+
+**Only run this when the project is near launch.** Below 90%, SEO is not priority — focus on blockers first. This is inspired by the SEO Machine quality gate pattern.
+
+**Technical SEO checks (run commands):**
+
+```bash
+# 1. Sitemap exists and is accessible
+curl -s -o /dev/null -w "%{http_code}" https://[PROD_URL]/sitemap.xml
+
+# 2. Robots.txt exists and references sitemap
+curl -s https://[PROD_URL]/robots.txt
+
+# 3. SSL and HTTPS
+curl -sI https://[PROD_URL] | grep "HTTP/"
+
+# 4. Meta tags on key pages (check homepage, main pages)
+curl -s https://[PROD_URL] | grep -oE '<title>[^<]+</title>|<meta name="description"[^>]+>'
+
+# 5. Open Graph tags
+curl -s https://[PROD_URL] | grep -oE 'property="og:[^"]+"|content="[^"]+"' | head -10
+
+# 6. Schema/structured data
+curl -s https://[PROD_URL] | grep -c 'application/ld+json'
+
+# 7. Canonical tag
+curl -s https://[PROD_URL] | grep -oE '<link rel="canonical"[^>]+>'
+
+# 8. H1 count (should be exactly 1 per page)
+curl -s https://[PROD_URL] | grep -c '<h1'
+
+# 9. Image alt text coverage
+curl -s https://[PROD_URL] | grep -oE '<img[^>]+>' | grep -cv 'alt='
+```
+
+**On-page SEO checks (read code):**
+
+```bash
+# Check for sitemap generation
+grep -r "sitemap" --include="*.ts" --include="*.tsx" . | grep -v node_modules | head -5
+
+# Check for robots.txt
+ls app/robots.ts public/robots.txt 2>/dev/null
+
+# Check for metadata exports
+grep -r "export.*metadata\|generateMetadata" --include="*.ts" --include="*.tsx" app/ | grep -v node_modules | head -10
+
+# Check for structured data
+grep -r "application/ld+json\|schema.org" --include="*.ts" --include="*.tsx" . | grep -v node_modules | head -5
+```
+
+**Display as scored section in dashboard:**
+
+```markdown
+## SEO — Score: X/10
+
+### Technical SEO
+
+  Sitemap.xml ·············· ✅/🔴  [accessible/missing]
+  Robots.txt ··············· ✅/🔴  [present with sitemap ref / missing]
+  HTTPS + SSL ·············· ✅/🔴  [valid / issues]
+  Canonical tags ··········· ✅/🔴  [present / missing]
+
+### On-Page SEO
+
+  Meta titles ·············· ✅/🔴  [X/Y pages have titles · length 50-60 chars]
+  Meta descriptions ········ ✅/🔴  [X/Y pages · length 150-160 chars]
+  Open Graph tags ·········· ✅/🔴  [og:title, og:description, og:image]
+  Schema/structured data ··· ✅/🔴  [N schemas detected]
+  H1 per page ·············· ✅/🔴  [single H1 per page]
+  Image alt texts ·········· ✅/🔴  [X images missing alt]
+
+### Content SEO (if blog/content pages exist)
+
+  Heading hierarchy ········ ✅/🔴  [no skipped levels, 4-7 H2s]
+  Internal links ··········· ✅/🔴  [>= 3 per content page]
+  External authority links ·· ✅/🔴  [>= 2 per content page]
+
+  Overall SEO Score          X/10
+```
+
+**Scoring rules:**
+- Each check: pass = 10, partial = 5, fail = 0
+- Overall = average, rounded
+- If score < 7: add SEO items to Next Actions
+- If no production URL detected: skip and write "SEO: Not checked — no production URL"
+
 ## Phase 3: Read Existing Dashboard + Get Previous %
 
 Look for: `INFRASTRUCTURE_STATUS.md` → `DASHBOARD.md` → `STATUS.md`.
@@ -406,12 +493,13 @@ Structure — these sections are **REQUIRED** in every dashboard (never skip):
 11. **Testing** — framework, files, status
 12. **Legal** — documents with completion count (X/Y)
 13. **Docs** — project files with completion count (X/Y)
-14. **Business** — pricing tiers in box-draw format (if SaaS/commercial)
-15. **App Blueprint** — what it does + user journey diagram + roles hierarchy + data model boxes + API surface
-16. **Goals** — 🎯 prioritized action plans from user intent
-17. **Active Tasks** — subtasks with `← auto`/`← user` + size S/M/L
-18. **Features** — shipped / pending / roadmap
-19. **Logs** — changes + decisions + learnings (append-only)
+14. **SEO** — scored audit (only when Launch >= 90%, otherwise "Activates at 90%")
+15. **Business** — pricing tiers in box-draw format (if SaaS/commercial)
+16. **App Blueprint** — what it does + user journey diagram + roles hierarchy + data model boxes + API surface
+17. **Goals** — 🎯 prioritized action plans from user intent
+18. **Active Tasks** — subtasks with `← auto`/`← user` + size S/M/L
+19. **Features** — shipped / pending / roadmap
+20. **Logs** — changes + decisions + learnings (append-only)
 
 **The order above is FIXED.** Every dashboard must follow this exact sequence. Never reorder, never skip.
 
