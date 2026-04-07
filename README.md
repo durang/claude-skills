@@ -1,6 +1,8 @@
-# /track — [◠‿◠] Scan · Progress Dashboard
+# [◠‿◠] Scan — AI Project Intelligence Engine
 
-One command. Any project. Real metrics. Zero config.
+> From idea to 100% launch. One command. Any project. Zero config.
+
+### What started as a progress tracker evolved into a complete project intelligence system for Claude Code — goal orchestration, verified task completion, security auditing, multi-language intent detection, and a living dashboard that never lets you lose context.
 
 ```
 /track
