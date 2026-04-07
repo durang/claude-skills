@@ -391,7 +391,22 @@ This is the most important phase. The dashboard must be **scannable in 30 second
 <!-- scan:COMMIT_HASH -->
 ```
 
-Structure (adapt sections to what the project actually has):
+Structure — these sections are **REQUIRED** in every dashboard (never skip):
+
+1. Header (project name)
+2. Launch Readiness (% + bars + blockers + next actions)
+3. Recent Activity (last 5 actions)
+4. Quick Start (local dev command + production URL + deploy command)
+5. Env Health (every env var checked ✅/🔴 for local AND production)
+6. Architecture (diagram + entry points + external services)
+7. Metrics (build + deps + codebase + velocity + code health)
+8. Stack + Infrastructure + Security + Legal + Docs
+9. Business + App Blueprint (if SaaS/commercial)
+10. Goals + Active Tasks
+11. Features (shipped/pending/roadmap)
+12. Logs (changes/decisions/learnings)
+
+Adapt the CONTENT of each section to the project, but NEVER skip a section. If a section has no data, write "Not detected" instead of omitting it.
 
 **IMPORTANT**: Extract the project name from `package.json` name field, or the repo directory name. Display it in UPPERCASE with double-spaced letters as the hero of the header. Use clean box-drawing border (`╔═══╗`) — minimalist, no emoji in the border.
 
