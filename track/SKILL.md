@@ -698,13 +698,67 @@ Use dot-aligned format:
   Service ·········· Provider           ✅/⚠️/🔴  Status detail
 \```
 
-## Security — X/Y
+## Security — X/Y · Score: N/10
 
-Use dot-aligned format with completion count in header:
+Two sub-sections: the existing checklist PLUS a new Security Audit with scored checks.
+
+### Checklist (app-level security)
+
 \```
   ✅ Check name ········ Detail
   🔴 Missing check ···· What's needed
 \```
+
+### Security Audit (scored — run these commands)
+
+Run ALL of these checks and score each 1-10:
+
+\```bash
+# 1. .env files in .gitignore
+grep -E "\.env" .gitignore 2>/dev/null
+
+# 2. .env never committed to git history
+git log --all --oneline --diff-filter=A -- "*.env" "**/.env" "**/.env.local" 2>/dev/null
+
+# 3. No hardcoded secrets in code (API keys, JWTs, passwords)
+grep -rn "sk-\|eyJ.*\.\|password.*=.*['\"]" --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | grep -v node_modules | grep -v .next | grep -v placeholder | grep -v test
+
+# 4. Production env vars encrypted (platform-specific)
+vercel env ls 2>/dev/null | grep -c "Encrypted"  # or fly secrets list, etc.
+
+# 5. HTTPS enabled
+curl -sI https://[PROD_URL] 2>/dev/null | grep "HTTP/"
+
+# 6. Security headers present
+curl -sI https://[PROD_URL] 2>/dev/null | grep -iE "strict-transport|x-frame|x-content-type|referrer-policy|permissions-policy"
+\```
+
+Display as scored table:
+
+\```
+                    Security Audit · Score: X/10
+
+  .env.local in .gitignore ·········· ✅  10/10
+  .env never committed ·············· ✅  10/10
+  No hardcoded secrets in code ······ ✅  10/10
+  Platform vars encrypted ··········· ✅  10/10
+  HTTPS in production ··············· ✅  10/10
+  HSTS header ······················· ✅  10/10
+  X-Frame-Options ··················· ✅  10/10
+  X-Content-Type-Options ············ ✅  10/10
+  Referrer-Policy ··················· ✅  10/10
+  Permissions-Policy ················ ✅  10/10
+  ───────────────────────────────────────────
+  Overall Score                       10/10
+\```
+
+**Scoring rules:**
+- Check passes fully → 10/10
+- Check passes with minor concern (e.g. placeholder fallbacks) → 6-7/10
+- Check fails → 0/10
+- Overall = average of all checks, rounded
+
+**If any check < 7/10:** flag it in Blockers and Next Actions. Security issues are P1 priority.
 
 ## Testing
 
