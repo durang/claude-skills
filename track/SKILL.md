@@ -471,29 +471,69 @@ Auto-detect the dev command and URLs from the project's config files:
 
 ## Env Health
 
-Compare `.env.local.example` (or `.env.example`) vs `.env.local` (or `.env`). Show what's configured and what's missing:
+**Step 1:** Get list of ALL expected env vars from `.env.example`, `.env.local.example`, or by scanning code for `process.env.` references:
 
-\```
-  ✅ NEXT_PUBLIC_SUPABASE_URL         .env.local
-  ✅ NEXT_PUBLIC_SUPABASE_ANON_KEY    .env.local
-  ✅ DEEPSEEK_API_KEY                 .env.local
-  🔴 LEMONSQUEEZY_WEBHOOK_SECRET     Missing — get from LS dashboard → Webhooks
-  🔴 SENTRY_DSN                      Missing — get from sentry.io → Project settings
-\```
-
-Also check Vercel env vars if CLI is available:
 \```bash
-vercel env ls 2>/dev/null
+# Get all env vars referenced in code
+grep -roh 'process\.env\.\([A-Z_]*\)' --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | grep -v node_modules | sed 's/process\.env\.//' | sort -u
 \```
 
-Compare local vs production — flag mismatches:
-\```
-  NEXT_PUBLIC_ADMIN_EMAIL    Local: ✅    Vercel: ✅
-  SUPABASE_SERVICE_ROLE_KEY  Local: 🔴    Vercel: ✅   ← only in production
-  SENTRY_DSN                 Local: 🔴    Vercel: 🔴   ← missing everywhere
+**Step 2:** Check which exist in local (`.env.local` or `.env`):
+
+\```bash
+grep -E '^[A-Z_]' .env.local 2>/dev/null | sed 's/=.*//' | sort
 \```
 
-**Why this matters:** prevents the "login doesn't work locally" problem — catches missing env vars before the user discovers them broken.
+**Step 3:** Detect hosting platform and check production vars:
+
+\```bash
+# Auto-detect platform
+if command -v vercel &>/dev/null && [ -d .vercel ]; then
+  PLATFORM="Vercel"
+  vercel env ls 2>/dev/null
+elif [ -f fly.toml ] && command -v fly &>/dev/null; then
+  PLATFORM="Fly.io"
+  fly secrets list 2>/dev/null
+elif [ -f netlify.toml ] && command -v netlify &>/dev/null; then
+  PLATFORM="Netlify"
+  netlify env:list 2>/dev/null
+elif [ -f railway.json ] && command -v railway &>/dev/null; then
+  PLATFORM="Railway"
+  railway variables list 2>/dev/null
+else
+  PLATFORM="Unknown"
+fi
+\```
+
+**Step 4:** Show side-by-side with ✅/🔴 for EVERY var:
+
+\```
+                                      Local     [Platform]
+  NEXT_PUBLIC_SUPABASE_URL        ··· ✅        ✅
+  NEXT_PUBLIC_SUPABASE_ANON_KEY   ··· ✅        ✅
+  DEEPSEEK_API_KEY                ··· ✅        ✅
+  SUPABASE_SERVICE_ROLE_KEY       ··· 🔴        ✅     ← production only
+  LEMONSQUEEZY_WEBHOOK_SECRET     ··· 🔴        🔴     ← missing everywhere
+\```
+
+Every var gets a row. Every row gets ✅ or 🔴 for both local AND production. No var left unchecked.
+
+**Step 5:** Summary + sync command:
+
+\```
+> Local: 9/10 synced. [Platform]: 9/10 configured.
+> Missing everywhere: LEMONSQUEEZY_WEBHOOK_SECRET
+> To sync: [platform-specific command]
+\```
+
+Sync commands per platform:
+- **Vercel:** `vercel env pull .env.local --environment production --yes`
+- **Fly.io:** `fly secrets list` → manual copy to `.env.local`
+- **Netlify:** `netlify env:get [VAR]` → manual copy
+- **Railway:** `railway variables` → manual copy
+- **Docker:** check `docker-compose.yml` environment section
+
+**Why this matters:** prevents "works in production but not locally" — every var checked, nothing missed.
 
 ---
 
