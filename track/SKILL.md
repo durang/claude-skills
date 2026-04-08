@@ -519,24 +519,25 @@ Structure — these sections are **REQUIRED** in every dashboard (never skip):
 
 1. **Header** — project name in spaced letters + `[◠‿◠] Scan · Progress Dashboard`
 2. **Launch Readiness** — OVERALL % bar + per-area bars + blockers + next 3 actions
-3. **Recent Activity** — last 5 timestamped actions today
-4. **Quick Start** — local dev command + production URL + deploy command
-5. **Env Health** — every env var ✅/🔴 for local AND production side-by-side
-6. **Architecture** — ASCII diagram + entry points (pages/libs/APIs grouped) + external services
-7. **Metrics** — build status + dependencies + codebase (lines by language) + velocity (daily/weekly/peak hours/commit types/timeline/milestone map) + code health (TODOs)
-8. **Stack** — tech by layer in box-draw format
-9. **Infrastructure** — services with dot-aligned status
-10. **Security** — checklist with completion count (X/Y)
-11. **Testing** — framework, files, status
-12. **Legal** — documents with completion count (X/Y)
-13. **Docs** — project files with completion count (X/Y)
-14. **SEO** — scored audit (only when Launch >= 90%, otherwise "Activates at 90%")
-15. **Business** — pricing tiers in box-draw format (if SaaS/commercial)
-16. **App Blueprint** — what it does + user journey diagram + roles hierarchy + data model boxes + API surface
-17. **Goals** — 🎯 prioritized action plans from user intent
-18. **Active Tasks** — subtasks with `← auto`/`← user` + size S/M/L
-19. **Features** — shipped / pending / roadmap
-20. **Logs** — changes + decisions + learnings (append-only)
+3. **Strategic Roadmap** — phased plan with success metrics per phase, current phase highlighted. This section answers "where are we going and how do we know we got there?"
+4. **Recent Activity** — last 5 timestamped actions today
+5. **Quick Start** — local dev command + production URL + deploy command
+6. **Env Health** — every env var ✅/🔴 for local AND production side-by-side
+7. **Architecture** — ASCII diagram + entry points (pages/libs/APIs grouped) + external services
+8. **Metrics** — build status + dependencies + codebase (lines by language) + velocity (daily/weekly/peak hours/commit types/timeline/milestone map) + code health (TODOs)
+9. **Stack** — tech by layer in box-draw format
+10. **Infrastructure** — services with dot-aligned status
+11. **Security** — checklist with completion count (X/Y)
+12. **Testing** — framework, files, status
+13. **Legal** — documents with completion count (X/Y)
+14. **Docs** — project files with completion count (X/Y)
+15. **SEO** — scored audit (only when Launch >= 90%, otherwise "Activates at 90%")
+16. **Business** — pricing tiers + product risks & mitigations (if SaaS/commercial)
+17. **App Blueprint** — what it does + user flow journeys per role + roles hierarchy + data model boxes + API surface
+18. **Goals** — 🎯 prioritized action plans from user intent
+19. **Active Tasks** — subtasks with `← auto`/`← user` + size S/M/L
+20. **Features** — shipped / pending / roadmap
+21. **Logs** — changes + decisions (with alternatives & rationale table) + learnings (append-only)
 
 **The order above is FIXED.** Every dashboard must follow this exact sequence. Never reorder, never skip.
 
@@ -593,6 +594,55 @@ OVERALL        [████████████████░░░░]  8
 1. [action] — unblocks [area] → +X%
 2. [action] — unblocks [area] → +X%
 3. [action] — improves [area]
+
+---
+
+## Strategic Roadmap
+
+Phased plan from current state to full product. Each phase groups related features, has clear success criteria, and shows which phase is active. This is NOT a flat feature list — it's a strategic sequence with gates.
+
+**How to build this section:**
+1. Read Goals, Active Tasks, Pending features, and Roadmap items
+2. Group them into 3-5 sequential phases based on dependency and priority
+3. For each phase: name, what it includes, success metric (measurable), and status
+4. Highlight the CURRENT phase — the one the project is actively working on
+5. Features from previous phases should match Shipped items
+6. Future phases should align with Roadmap items
+
+\```
+CURRENT PHASE ▶ [Phase Name]
+
+  Phase 1 · [Name]                           ✅ Complete
+  ─────────────────────────────────────────────────────
+  Includes:  [3-5 key deliverables]
+  Metric:    [measurable success criteria]
+  Result:    [what was achieved]
+
+  Phase 2 · [Name]                      ◀ YOU ARE HERE
+  ─────────────────────────────────────────────────────
+  Includes:  [3-5 key deliverables]
+  Metric:    [measurable success criteria]
+  Progress:  [X/Y items done]
+
+  Phase 3 · [Name]                           ○ Upcoming
+  ─────────────────────────────────────────────────────
+  Includes:  [3-5 key deliverables]
+  Metric:    [measurable success criteria]
+  Blocked by: Phase 2 completion
+
+  Phase 4 · [Name]                           ○ Future
+  ─────────────────────────────────────────────────────
+  Includes:  [3-5 key deliverables]
+  Metric:    [measurable success criteria]
+\```
+
+**Update rules:**
+- When a phase's success metric is met → mark ✅, move pointer to next phase
+- When features ship → update the active phase's progress count
+- Phases are SEQUENTIAL — don't start Phase 3 until Phase 2 metric is met (unless user overrides)
+- If user asks "where are we?" or "what phase?" → read this section first
+- On FULL scan: verify phase progress against shipped features and active tasks
+- On INCREMENTAL scan: only update if features shipped or tasks completed since last scan
 
 ---
 
@@ -911,6 +961,33 @@ Use dot-aligned format with completion count in header:
 | Metric | Value |
 [If SaaS/commercial — pricing, audience, differentiator. Keep tight]
 
+### Product Risks & Mitigations
+
+Identify real risks to the product's success — not just security (that's in section 11), but business, competitive, and technical risks. Detect these by analyzing: the project type, external dependencies, monetization model, and market positioning.
+
+\```
+  Risk                              Severity   Mitigation
+  ─────────────────────────────────────────────────────────────
+  [Competitive risk]                ⚠️ Med     [How to defend]
+  [Dependency risk]                 🔴 High    [Fallback plan]
+  [Cost/scaling risk]              ⚠️ Med     [How to control]
+  [Product-market fit risk]         🔴 High    [Validation plan]
+  [Legal/compliance risk]           ⚠️ Med     [How to mitigate]
+\```
+
+**How to detect risks automatically:**
+- External API dependency (AI, payments, auth) → "vendor lock-in" or "cost scaling" risk
+- No free tier / trial → "adoption barrier" risk
+- Single revenue model → "revenue concentration" risk
+- Crowded category (detected from package.json keywords, README) → "differentiation" risk
+- Complex onboarding (multi-step setup) → "activation" risk
+- Hard-coded to one region/language → "market limitation" risk
+
+**Update rules:**
+- On FULL scan: regenerate from project analysis
+- On INCREMENTAL scan: only update if business-relevant files changed (pricing, plans, README)
+- If a risk is mitigated by shipped code → mark with ✅ and keep for history
+
 ## App Blueprint
 
 > Auto-generated from real code analysis. This section is the complete portrait of what the app does — enough to understand it, explain it to someone, or rebuild it.
@@ -918,9 +995,46 @@ Use dot-aligned format with completion count in header:
 ### What it does
 [One paragraph: what the product is, who it's for, what problem it solves]
 
-### User Flows
-| Flow | Route | Description |
-[Every user-facing flow — detected from page routes and components]
+### User Flow Journeys
+
+For each distinct user type/role, write a **narrative step-by-step journey** showing their complete experience. This is NOT a route table — it's a story of what each user does from first touch to core value.
+
+Detect user types from: auth roles, middleware checks, tier/plan logic, different onboarding paths, invite flows.
+
+\```
+👤 [Role Name] — [one-line description]
+  1. [Entry point] → [what they see]
+  2. [Key action] → [what happens]
+  3. [Core value moment] → [what they get]
+  4. [Ongoing loop] → [retention action]
+  ...
+
+👤 [Second Role] — [one-line description]
+  1. [Different entry point] → [what they see]
+  2. ...
+\```
+
+**Example for a SaaS with admin + end-user:**
+\```
+👤 Admin — creates account, configures workspace
+  1. Landing → pricing → sign up
+  2. Onboarding wizard → company info → invite team
+  3. Dashboard → sees metrics → configures settings
+  4. Daily: reviews reports → takes action
+
+👤 Team Member — invited by admin, uses daily
+  1. Receives invite email → clicks magic link
+  2. Sees workspace → completes profile
+  3. Uses core feature → gets value
+  4. Daily: returns to core loop
+\```
+
+**Rules:**
+- One journey per distinct user type (not per route)
+- Focus on the EXPERIENCE, not the implementation
+- Include the entry point (how they discover/arrive)
+- Include the "aha moment" (when they get value)
+- Detect from routes, auth logic, invite flows, role checks
 
 ### Roles & Permissions
 | Role | Can do | How detected |
@@ -994,7 +1108,20 @@ Tasks added by the user ("nos falta X", "necesitamos Y", "agrega Z"). Each task 
 
 ### Decisions — append only
 
-| Date | Decision | Rationale |
+Decisions are NOT just "what we chose". They MUST include what was rejected and why. This prevents re-litigating past decisions and helps future developers understand the reasoning.
+
+| Date | Decision | Alternative Rejected | Rationale |
+
+**Examples:**
+| 2026-04-08 | unpdf for PDF extraction | pdf-parse | ESM-native, better structure preservation, works in serverless |
+| 2026-04-08 | Magic link auth, no passwords | Email + password | Simpler for invitations, zero friction for invited parties |
+| 2026-04-08 | RLS helper functions | Inline policy subqueries | Performance — avoids repeated subqueries on every RLS check |
+
+**How to populate:**
+- On FULL scan: detect major architectural choices by reading config files, package.json dependencies, and framework patterns
+- When a task involves choosing between approaches: log the decision when the task completes
+- When the user explains WHY they chose something: capture it immediately
+- Auto-detect from code: if both `pdf-parse` and `unpdf` are in package.json, one is likely a fallback — note it
 
 ### Learnings — append only
 
@@ -1013,6 +1140,20 @@ Tasks added by the user ("nos falta X", "necesitamos Y", "agrega Z"). Each task 
 - If the project has separate frontend/backend, show the boundary
 - Keep it under 30 lines — readable at a glance
 - Update ONLY if structural changes detected (new services, new layers)
+
+### Critical Rules for Strategic Roadmap:
+- Roadmap comes from analyzing Goals, Active Tasks, Pending, and Roadmap features — group them into phases
+- Each phase MUST have a measurable success metric (number of users, revenue, retention %, features count — not vague goals)
+- Phases are sequential — Phase N+1 depends on Phase N being complete
+- The CURRENT phase is always highlighted with `◀ YOU ARE HERE`
+- When a phase's metric is met → mark ✅ Complete, add Result line, move pointer
+- When user asks "where are we?" → read Strategic Roadmap first, then Launch Readiness
+- On Kickstart Mode: generate initial roadmap from the user's description (usually 3-4 phases: MVP → Product → Scale → Enterprise)
+- Phase features should cross-reference with Features section (Shipped = past phases, Pending = current phase, Roadmap = future phases)
+- If user's current work doesn't align with the active phase → flag it: "This is Phase 4 work, but you're in Phase 2. Want to continue anyway?"
+- On FULL scan: verify phase progress against real shipped features
+- Never have more than 5 phases — if more, consolidate
+- Each phase should have 3-7 key deliverables, not 20 — keep it strategic, not tactical
 
 ### Critical Rules for Goals:
 - Goals come from user intent, not from `/track` scanning
