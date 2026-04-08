@@ -411,6 +411,43 @@ grep -r "application/ld+json\|schema.org" --include="*.ts" --include="*.tsx" . |
   Overall SEO Score          X/10
 ```
 
+### PWA Readiness (sub-section of SEO, check if applicable)
+
+```bash
+# 1. manifest.json / site.webmanifest exists
+curl -s -o /dev/null -w "%{http_code}" https://[PROD_URL]/manifest.json 2>/dev/null
+curl -s -o /dev/null -w "%{http_code}" https://[PROD_URL]/site.webmanifest 2>/dev/null
+
+# 2. Service worker
+grep -r "serviceWorker\|sw.js\|next-pwa\|workbox\|serwist" --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | grep -v node_modules | head -3
+
+# 3. Icons in manifest
+curl -s https://[PROD_URL]/manifest.json 2>/dev/null | grep -c "icon"
+
+# 4. Mobile meta tags in code
+grep -r "apple-mobile-web-app\|theme-color\|viewport\|manifest" --include="*.tsx" --include="*.ts" app/layout* 2>/dev/null | head -5
+```
+
+Display:
+
+\```
+  Manifest ················· ✅/🔴  [manifest.json accessible / missing]
+  Service Worker ··········· ✅/🔴  [registered / not configured]
+  App Icons (192+512) ······ ✅/🔴  [present in manifest / missing]
+  theme-color ·············· ✅/🔴  [set / missing]
+  apple-mobile-web-app ····· ✅/🔴  [capable / missing]
+  Viewport ················· ✅/🔴  [configured / missing]
+  Standalone display ······· ✅/🔴  [display: standalone in manifest / missing]
+  Offline support ·········· ✅/🔴  [service worker caches / no offline]
+
+  PWA Score                   X/8
+\```
+
+**Rules:**
+- Only show this sub-section if the project has a web frontend (not CLI/API-only)
+- If PWA score < 4: suggest adding manifest.json + service worker as a Pending item
+- If PWA score >= 6: app is installable on mobile
+
 **Scoring rules:**
 - Each check: pass = 10, partial = 5, fail = 0
 - Overall = average, rounded
