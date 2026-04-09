@@ -935,6 +935,206 @@ Display as scored table:
 
 **If any check < 7/10:** flag it in Blockers and Next Actions. Security issues are P1 priority.
 
+### User Profiles & Access Audit (auto-activates when auth detected)
+
+**When to run:** Auto-activates on FULL scan if the project has authentication (Supabase Auth, NextAuth, Clerk, Firebase Auth, custom JWT, session-based auth). Skip for public-only projects with no auth.
+
+**Purpose:** Detect every user profile/role the project supports, map what each one can access, verify that access controls are enforced, and surface gaps (unprotected routes, missing role checks, dead dashboards).
+
+**Step 1 — Detect auth system:**
+
+\```bash
+# Auth providers
+grep -rn "supabase.*auth\|createClient\|NextAuth\|getServerSession\|ClerkProvider\|useUser\|useAuth\|firebase.*auth\|passport\|jsonwebtoken\|jwt\.verify" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | grep -v .next | head -10
+
+# Auth middleware
+find . \( -name "middleware.ts" -o -name "middleware.js" \) -not -path '*/node_modules/*' 2>/dev/null
+grep -rn "withAuth\|requireAuth\|protectedRoute\|authGuard" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | head -10
+\```
+
+**Step 2 — Detect user profiles/roles:**
+
+\```bash
+# Role definitions (enums, types, constants)
+grep -rn "role.*=\|UserRole\|user_role\|subscription_tier\|plan.*=\|isAdmin\|isSuperadmin\|is_admin\|ADMIN\|ROLES" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | grep -v .next | head -20
+
+# Tier/subscription checks
+grep -rn "subscription\|tier\|plan\|isPro\|isFree\|isPremium\|hasSubscription\|canAccess" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | grep -v .next | head -15
+
+# Admin detection patterns
+grep -rn "ADMIN_EMAIL\|admin.*check\|isAdmin\|isSuperadmin\|role.*admin\|adminOnly" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | grep -v .next | head -10
+
+# Auth state stores (Zustand, Redux, Context)
+grep -rn "useAuth\|useUser\|useSession\|authStore\|userStore\|AuthContext\|UserContext" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | grep -v .next | head -10
+\```
+
+**Step 3 — Map pages/routes to profiles:**
+
+\```bash
+# All pages (Next.js App Router)
+find app -name "page.tsx" -o -name "page.ts" -o -name "page.jsx" 2>/dev/null | sort
+
+# For each page, detect access level
+for f in $(find app -name "page.tsx" 2>/dev/null | sort); do
+  ROUTE=$(echo "$f" | sed 's|app/||;s|/page.tsx||;s|^|/|')
+  [ "$ROUTE" = "/" ] && ROUTE="/"
+
+  HAS_AUTH=$(grep -c "useAuth\|useUser\|useSession\|getUser\|getSession\|redirect.*login\|redirect.*auth" "$f" 2>/dev/null)
+  HAS_ADMIN=$(grep -c "isAdmin\|isSuperadmin\|ADMIN\|adminOnly\|role.*admin" "$f" 2>/dev/null)
+  HAS_SUB=$(grep -c "subscription\|hasSubscription\|isPro\|tier\|canUse" "$f" 2>/dev/null)
+  IS_AUTH_PAGE=$(echo "$ROUTE" | grep -c "auth\|login\|register\|signin\|signup")
+
+  if [ "$HAS_ADMIN" -gt 0 ]; then
+    echo "ADMIN    $ROUTE"
+  elif [ "$HAS_SUB" -gt 0 ]; then
+    echo "PAID     $ROUTE"
+  elif [ "$HAS_AUTH" -gt 0 ]; then
+    echo "USER     $ROUTE"
+  elif [ "$IS_AUTH_PAGE" -gt 0 ]; then
+    echo "AUTH     $ROUTE"
+  else
+    echo "PUBLIC   $ROUTE"
+  fi
+done
+
+# API routes access level
+for f in $(find app/api -name "route.ts" 2>/dev/null | sort); do
+  ROUTE=$(echo "$f" | sed 's|app/||;s|/route.ts||')
+  HAS_AUTH=$(grep -c "getUser\|getSession\|auth()\|verifySignature\|ADMIN\|token" "$f" 2>/dev/null)
+  HAS_ADMIN=$(grep -c "isAdmin\|ADMIN_EMAIL\|adminOnly\|service_role\|createAdminClient" "$f" 2>/dev/null)
+  HAS_RATE=$(grep -c "rateLimit\|checkRateLimit\|rateLimiter" "$f" 2>/dev/null)
+
+  if [ "$HAS_ADMIN" -gt 0 ]; then
+    echo "ADMIN    $ROUTE  $([ "$HAS_RATE" -gt 0 ] && echo '[rate-limited]')"
+  elif [ "$HAS_AUTH" -gt 0 ]; then
+    echo "AUTH     $ROUTE  $([ "$HAS_RATE" -gt 0 ] && echo '[rate-limited]')"
+  else
+    echo "PUBLIC   $ROUTE  $([ "$HAS_RATE" -gt 0 ] && echo '[rate-limited]')"
+  fi
+done
+\```
+
+**Step 4 — Detect dashboards and panels:**
+
+\```bash
+# Dashboard pages
+find app -path "*dashboard*" -o -path "*panel*" -o -path "*admin*" -o -path "*profile*" -o -path "*settings*" -o -path "*account*" 2>/dev/null | grep -v node_modules | grep -v .next | sort
+
+# Dashboard components
+find components -iname "*dashboard*" -o -iname "*panel*" -o -iname "*admin*" -o -iname "*profile*" 2>/dev/null | sort
+\```
+
+**Step 5 — Verify access controls:**
+
+\```bash
+# Middleware protection (which routes does middleware protect?)
+if [ -f middleware.ts ] || [ -f src/middleware.ts ]; then
+  grep -n "matcher\|config.*matcher\|pathname" middleware.ts src/middleware.ts 2>/dev/null
+fi
+
+# Pages with auth redirects (client-side protection)
+grep -rn "redirect.*login\|redirect.*auth\|push.*login\|router.*login\|unauthorized" --include="*.tsx" app/ 2>/dev/null | grep -v node_modules | head -15
+
+# Pages WITHOUT auth that access user data (potential leak)
+for f in $(find app -name "page.tsx" 2>/dev/null); do
+  HAS_AUTH=$(grep -c "useAuth\|useUser\|getSession\|getUser" "$f" 2>/dev/null)
+  USES_DATA=$(grep -c "supabase\|fetch.*api\|session\|userData\|userProfile" "$f" 2>/dev/null)
+  if [ "$HAS_AUTH" = "0" ] && [ "$USES_DATA" -gt 0 ]; then
+    ROUTE=$(echo "$f" | sed 's|app/||;s|/page.tsx||;s|^|/|')
+    echo "⚠️ NO AUTH but uses data: $ROUTE"
+  fi
+done
+\```
+
+**Step 6 — Display in dashboard:**
+
+\```
+### User Profiles & Access — X Profiles Detected
+
+  Auth system ·············· [Supabase/NextAuth/Clerk/etc.]
+
+  Profiles detected:
+  ─────────────────────────────────────────────────────────
+  Profile              Auth Required   Routes    Dashboard
+  ─────────────────────────────────────────────────────────
+  Guest (visitor)      No              X pages   —
+  Free user            Yes             X pages   /dashboard
+  Paid user            Yes + sub       X pages   /dashboard
+  Admin                Yes + role      X pages   /panel
+  Super admin          Yes + email     all       /panel (full)
+  ─────────────────────────────────────────────────────────
+
+  Route Access Matrix:
+  ─────────────────────────────────────────────────────────
+  Route                Guest  Free  Paid  Admin  Super
+  ─────────────────────────────────────────────────────────
+  /                    ✅     ✅    ✅    ✅     ✅
+  /frequencies         ✅     ✅    ✅    ✅     ✅
+  /pricing             ✅     ✅    ✅    ✅     ✅
+  /auth/login          ✅     —     —     —      —
+  /dashboard           🔴     ✅    ✅    ✅     ✅
+  /experience/*        ⚠️     ⚠️    ✅    ✅     ✅
+  /protocols/*         🔴     🔴    ✅    ✅     ✅
+  /profile             🔴     ✅    ✅    ✅     ✅
+  /panel               🔴     🔴    🔴    ✅     ✅
+  ─────────────────────────────────────────────────────────
+  ✅ = full access  ⚠️ = limited (free tier)  🔴 = blocked  — = redirected
+
+  API Route Protection:
+  ─────────────────────────────────────────────────────────
+  ✅ /api/chat ·········· rate-limited (15/min)
+  ✅ /api/admin/users ··· admin only
+  ✅ /api/webhooks/* ···· HMAC signature
+  ✅ /api/email/welcome · internal secret
+  ⚠️ /api/[route] ······ [issue if found]
+  ─────────────────────────────────────────────────────────
+
+  Access Control Verification:
+  ─────────────────────────────────────────────────────────
+  Middleware protection ···· ✅/🔴  [routes covered / missing]
+  Client-side redirects ···· ✅/🔴  [auth pages redirect logged-in users]
+  Admin role verification ·· ✅/🔴  [env var / DB role / hardcoded]
+  Subscription gating ······ ✅/🔴  [tier checks on premium features]
+  API route auth ··········· ✅/🔴  [all sensitive routes protected]
+  Data without auth ········ ✅/🔴  [no pages access data without auth]
+  ─────────────────────────────────────────────────────────
+
+  Issues found:
+  ─────────────────────────────────────────────────────────
+  [⚠️/🔴 specific issues — unprotected routes, missing checks, etc.]
+  [If none: "No issues found — all profiles properly gated"]
+\```
+
+**Scoring rules:**
+- All profiles detected and properly gated → 10/10
+- Missing middleware on protected routes → 5/10
+- Admin panel accessible without role check → 2/10 (CRITICAL)
+- Data accessible without auth → 3/10 (CRITICAL)
+- No auth system detected on SaaS project → 0/10 (BLOCKER)
+- Subscription features accessible to free users → 6/10
+
+**Profile detection heuristics:**
+
+The skill does NOT assume fixed profiles. It detects them from actual code patterns:
+
+| Code pattern | Profile detected |
+|-------------|-----------------|
+| No auth check on page | Guest/visitor |
+| `useAuth()` / `getSession()` present | Authenticated user |
+| `hasSubscription` / `tier` / `isPro` | Paid user (per tier) |
+| `isAdmin` / `ADMIN_EMAIL` check | Admin |
+| `isSuperadmin` / service_role access | Super admin |
+| `role === 'practitioner'` / custom roles | Custom profile (named from code) |
+
+If a project has 2 profiles, show 2. If it has 7, show 7. Adapt to what the code actually implements.
+
+**Integration with other audits:**
+- Cross-reference with **Database Isolation Audit** — if RLS policies don't match detected profiles, flag it
+- Cross-reference with **Email & Automations Audit** — if admin has no email section, flag as gap
+- Cross-reference with **Security Audit** — unprotected admin routes are P0
+
+**On INCREMENTAL scan:** only re-run if auth files, middleware, or page files changed since last scan hash. Otherwise preserve previous audit.
+
 ### Database Isolation Audit (auto-activates when DB detected)
 
 **When to run:** Auto-activates on FULL scan if the project has a database (Supabase, Prisma, Drizzle, raw SQL, Firebase, MongoDB). Skip if no DB detected.
@@ -1087,6 +1287,124 @@ grep -rn "guest\|webhook\|public\|token" app/api/ --include="*.ts" -l 2>/dev/nul
 **If score < 8/10:** add to Blockers as P0. Data isolation failures are higher priority than ANY feature work.
 
 **On INCREMENTAL scan:** only re-run if migration files, API routes, or auth middleware changed since last scan hash. Otherwise preserve the previous audit result.
+
+### Email & Automations Audit (auto-activates when email provider or SaaS detected)
+
+**When to run:** Auto-activates on FULL scan if the project uses an email provider (Resend, SendGrid, Nodemailer, AWS SES, Postmark, Mailgun) OR is a SaaS/web app with user authentication. Skip for CLI tools, libraries, and static sites.
+
+**Step 1 — Detect email provider:**
+
+\```bash
+# Check package.json for email libraries
+grep -E "resend|@sendgrid|nodemailer|@aws-sdk/client-ses|postmark|mailgun|@react-email" package.json 2>/dev/null
+
+# Check for email service files
+find . -type f \( -name "*email*" -o -name "*mail*" -o -name "*mailer*" \) -not -path '*/node_modules/*' -not -path '*/.next/*' 2>/dev/null
+
+# Check env vars for email config
+grep -roh 'process\.env\.\(RESEND\|SENDGRID\|SMTP\|MAIL\|SES\|POSTMARK\)[A-Z_]*' --include="*.ts" --include="*.tsx" --include="*.js" . 2>/dev/null | sort -u
+
+# Check for email templates
+find . -type f \( -name "*template*" -o -name "*email*" \) -path "*/email*" -not -path '*/node_modules/*' 2>/dev/null
+\```
+
+**Step 2 — Detect what's connected:**
+
+\```bash
+# Auth emails (Supabase, NextAuth, etc.)
+grep -rn "signInWithOtp\|resetPasswordForEmail\|sendVerification\|magic.link" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | head -10
+
+# Custom SMTP config (Supabase or direct)
+grep -rn "smtp\|SMTP" --include="*.ts" --include="*.tsx" --include="*.env*" . 2>/dev/null | grep -v node_modules | head -5
+
+# Transactional email functions (welcome, purchase, etc.)
+grep -rn "sendWelcome\|sendPurchase\|sendNotif\|sendEmail\|sendMail" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules
+
+# Email API routes
+find . -path "*/api/*email*" -o -path "*/api/*mail*" | grep -v node_modules 2>/dev/null
+
+# Email logging/tracking
+grep -rn "email.log\|emailLog\|email_log\|EmailLog" --include="*.ts" --include="*.tsx" --include="*.sql" . 2>/dev/null | grep -v node_modules
+
+# Lead capture forms
+grep -rn "email.*capture\|newsletter\|subscribe\|waitlist\|lead" --include="*.ts" --include="*.tsx" . 2>/dev/null | grep -v node_modules | head -10
+
+# Webhook-triggered emails (payment confirmations, etc.)
+grep -rn "sendEmail\|sendMail\|resend\|email" --include="*.ts" app/api/webhooks/ 2>/dev/null | head -5
+
+# Admin email management
+grep -rn "email" --include="*.ts" --include="*.tsx" app/panel/ app/admin/ 2>/dev/null | grep -v node_modules | head -10
+\```
+
+**Step 3 — Evaluate maturity level:**
+
+Score the email system across 3 levels:
+
+\```
+Level 1 — MVP (minimum for launch)
+  [ ] Email provider configured (Resend, SendGrid, etc.)
+  [ ] Auth emails branded (custom SMTP or templates)
+  [ ] Welcome email on registration
+  [ ] Password reset email
+
+Level 2 — Growth (post-launch, user retention)
+  [ ] Subscription/purchase confirmation email
+  [ ] Lead capture connected to backend (not just localStorage)
+  [ ] Email logs table (audit trail)
+  [ ] Admin panel email section (view logs, send test)
+
+Level 3 — Scale (automation, engagement)
+  [ ] Scheduled emails (inactivity, expiring subscription)
+  [ ] Newsletter/broadcast capability from admin panel
+  [ ] Unsubscribe management
+  [ ] Email analytics (open rates, click rates via provider)
+\```
+
+**Step 4 — Display in dashboard:**
+
+\```
+### Email & Automations — Score: X/10
+
+  Provider ················· [Resend/SendGrid/None]        ✅/🔴
+  From address ············· [detected or "default"]       ✅/⚠️
+  Auth emails branded ······ [custom SMTP / default]       ✅/⚠️
+  Welcome email ············ [connected / missing]         ✅/🔴
+  Password reset ··········· [connected / missing]         ✅/🔴
+  Purchase confirmation ···· [connected / missing]         ✅/🔴
+  Lead capture ············· [backend / localStorage / none] ✅/⚠️/🔴
+  Email logs ··············· [table exists / missing]      ✅/🔴
+  Admin email panel ········ [exists / missing]            ✅/🔴
+  Scheduled emails ········· [configured / missing]        ✅/🔴
+
+  Level 1 (MVP) ··········· X/4 items                     XX%
+  Level 2 (Growth) ········ X/4 items                     XX%
+  Level 3 (Scale) ········· X/4 items                     XX%
+
+  Recommended next:
+  → [highest impact missing item]                          ← auto/user · S/M
+  → [second item]                                          ← auto/user · S/M
+  → [third item]                                           ← auto/user · S/M
+\```
+
+**Scoring rules:**
+- Level 1 complete (4/4) → 6/10
+- Level 1 + Level 2 complete (8/8) → 8/10
+- All levels complete (12/12) → 10/10
+- No email provider detected → 0/10 (flag as gap, not blocker — email is not always required)
+- Provider detected but no templates → 3/10
+
+**Integration with Launch Readiness:**
+- If project is SaaS with auth: Level 1 items are required for launch — add to Pending if missing
+- If project has payments: purchase confirmation is P1 — add to Next Actions if missing
+- If project has lead capture forms storing only in localStorage: flag as ⚠️ — data is lost when user clears browser
+
+**Smart proposal behavior:**
+- Do NOT build the email system automatically on scan
+- DO show the scored section with clear gaps
+- DO add missing Level 1 items to Next Actions (for SaaS projects)
+- When user says "let's add emails" or "configura correos" or similar intent → use this audit as the starting point, then build adapted to the project's actual stack (Resend vs SendGrid, Supabase vs Prisma, Next.js vs Express)
+
+**On INCREMENTAL scan:** only re-run if email-related files changed (lib/email*, app/api/email*, package.json email deps). Otherwise preserve previous audit.
 
 ## Testing
 
@@ -1543,3 +1861,4 @@ Task summaries accumulate in the Logs section as a permanent record. They're the
 13. **Intent over keywords** — detect what the user means, in any language, not what they literally say
 14. **Orchestrate toward 100%** — every action, goal, and task must move the project toward launch
 15. **Honesty over agreement** — if the user's idea isn't priority, say so respectfully and show what is
+16. **Privacy-safe output** — the dashboard shows variable NAMES, never values. No API keys, tokens, or secrets appear in the dashboard. If sharing the dashboard publicly, review Infrastructure and Env Health sections for service identifiers (project IDs, org names) that could aid targeted attacks
