@@ -935,6 +935,159 @@ Display as scored table:
 
 **If any check < 7/10:** flag it in Blockers and Next Actions. Security issues are P1 priority.
 
+### Database Isolation Audit (auto-activates when DB detected)
+
+**When to run:** Auto-activates on FULL scan if the project has a database (Supabase, Prisma, Drizzle, raw SQL, Firebase, MongoDB). Skip if no DB detected.
+
+**Step 1 — Detect the database layer:**
+
+\```bash
+# Supabase
+ls supabase/ supabase/migrations/ 2>/dev/null
+grep -r "createClient\|createAdminClient\|supabase" --include="*.ts" --include="*.tsx" lib/ app/ 2>/dev/null | head -5
+
+# Prisma
+ls prisma/schema.prisma 2>/dev/null
+
+# Drizzle
+ls drizzle/ drizzle.config.* 2>/dev/null
+
+# Raw SQL / other
+grep -r "pg\|mysql\|sqlite\|mongoose\|mongodb\|firestore" package.json 2>/dev/null
+\```
+
+**Step 2 — Audit based on detected stack:**
+
+**For Supabase projects:**
+
+\```bash
+# 2a. Find all tables and check RLS status
+grep -r "ENABLE ROW LEVEL SECURITY\|CREATE TABLE" supabase/ --include="*.sql" 2>/dev/null | sort
+
+# 2b. Find all RLS policies
+grep -r "CREATE POLICY" supabase/ --include="*.sql" 2>/dev/null
+
+# 2c. Find RLS helper functions (like is_contract_party, auth.uid checks)
+grep -r "auth\.uid()\|auth\.role()\|SECURITY DEFINER" supabase/ --include="*.sql" 2>/dev/null
+
+# 2d. Find tables WITHOUT RLS (CRITICAL — this is the #1 data leak vector)
+# Compare CREATE TABLE count vs ENABLE ROW LEVEL SECURITY count
+TABLES=$(grep -rc "CREATE TABLE" supabase/ --include="*.sql" 2>/dev/null | awk -F: '{s+=$2}END{print s}')
+RLS=$(grep -rc "ENABLE ROW LEVEL SECURITY" supabase/ --include="*.sql" 2>/dev/null | awk -F: '{s+=$2}END{print s}')
+echo "Tables: $TABLES, RLS enabled: $RLS"
+
+# 2e. Find API routes using admin/service_role client (bypass RLS — needs manual auth check)
+grep -rn "createAdminClient\|service_role\|serviceRole" app/api/ --include="*.ts" 2>/dev/null
+
+# 2f. For each admin client usage, verify there's an auth check before it
+# Look for routes that use admin client WITHOUT auth.getUser() or token validation
+for f in $(grep -rl "createAdminClient" app/api/ --include="*.ts" 2>/dev/null); do
+  HAS_AUTH=$(grep -c "auth.getUser\|\.eq.*token\|verifySignature" "$f")
+  if [ "$HAS_AUTH" = "0" ]; then
+    echo "⚠️ NO AUTH CHECK: $f"
+  fi
+done
+
+# 2g. Check for SELECT * without RLS filter (potential data leak)
+grep -rn "\.select(\*\|\.select()" app/api/ --include="*.ts" 2>/dev/null | head -20
+
+# 2h. Storage bucket policies
+grep -r "storage\.buckets\|storage\.objects" supabase/ --include="*.sql" 2>/dev/null
+\```
+
+**For Prisma/Drizzle projects:**
+
+\```bash
+# Check for tenant isolation in queries
+grep -rn "where.*userId\|where.*tenantId\|where.*orgId" --include="*.ts" --include="*.tsx" app/ lib/ 2>/dev/null | head -20
+
+# Check for middleware that injects user context
+grep -rn "middleware\|getServerSession\|auth()" --include="*.ts" app/ lib/ 2>/dev/null | head -10
+
+# Check for raw queries without user filter
+grep -rn "prisma\.\$queryRaw\|db\.execute\|sql\`" --include="*.ts" app/ lib/ 2>/dev/null | head -10
+\```
+
+**Step 3 — Cross-reference API routes with auth:**
+
+\```bash
+# List ALL API routes
+find app/api -name "route.ts" -o -name "route.js" 2>/dev/null | sort
+
+# For each route, check if it has auth verification
+for f in $(find app/api -name "route.ts" 2>/dev/null); do
+  ROUTE=$(echo "$f" | sed 's|app/api/||;s|/route.ts||')
+  HAS_AUTH=$(grep -c "getUser\|getSession\|getServerSession\|auth()\|token.*active\|verifySignature\|NextAuth" "$f" 2>/dev/null)
+  USES_ADMIN=$(grep -c "createAdminClient\|adminClient\|serviceRole" "$f" 2>/dev/null)
+  if [ "$USES_ADMIN" -gt 0 ] && [ "$HAS_AUTH" = "0" ]; then
+    echo "🔴 $ROUTE — admin client WITHOUT auth"
+  elif [ "$HAS_AUTH" = "0" ]; then
+    echo "⚠️ $ROUTE — no auth detected (may be public)"
+  else
+    echo "✅ $ROUTE — auth verified"
+  fi
+done
+\```
+
+**Step 4 — Check for guest/public access patterns:**
+
+\```bash
+# Routes that intentionally skip auth (webhooks, guest access, public APIs)
+# These need alternative validation (token, signature, rate limiting)
+grep -rn "guest\|webhook\|public\|token" app/api/ --include="*.ts" -l 2>/dev/null
+\```
+
+**Step 5 — Display results:**
+
+\```
+### Database Isolation Audit · Score: X/10
+
+  Stack ························ [Supabase/Prisma/Drizzle/etc.]
+  Tables detected ·············· N
+  RLS enabled ·················· N/N  ✅/🔴
+  Policies per table (avg) ····· N
+  Auth helper functions ········ [list]
+
+  Per-table breakdown:
+  ─────────────────────────────────────────────────
+  Table              RLS    Policies   Isolation
+  contracts          ✅     3          party + creator
+  profiles           ✅     2          own user only
+  invite_tokens      ✅     2          creator only
+  [table]            🔴     0          ⚠️ NO RLS — CRITICAL
+
+  API Route Auth Audit:
+  ─────────────────────────────────────────────────
+  ✅ 14 routes with auth verification
+  ⚠️  2 routes public by design (webhook, guest)
+  🔴  0 routes with admin client but no auth
+
+  Guest/Public Access:
+  ─────────────────────────────────────────────────
+  [route] ·· validated by [token/signature/etc.]
+  [route] ·· ⚠️ no validation — NEEDS FIX
+
+  Data Leak Vectors:
+  ─────────────────────────────────────────────────
+  ✅ No tables without RLS
+  ✅ All admin client routes verify auth
+  ✅ Guest access filters sensitive data
+  ⚠️ [specific issue if found]
+
+  Overall Score                  X/10
+\```
+
+**Scoring rules:**
+- All tables have RLS + all routes verified → 10/10
+- One table missing RLS → 3/10 (CRITICAL — instant blocker)
+- Admin client without auth check → 2/10 (CRITICAL)
+- Minor attribution issues (e.g. placeholder user_ids) → 7/10
+- No DB detected → "N/A — no database" (don't score)
+
+**If score < 8/10:** add to Blockers as P0. Data isolation failures are higher priority than ANY feature work.
+
+**On INCREMENTAL scan:** only re-run if migration files, API routes, or auth middleware changed since last scan hash. Otherwise preserve the previous audit result.
+
 ## Testing
 
 | Metric | Value |
