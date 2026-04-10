@@ -1406,10 +1406,97 @@ Level 3 — Scale (automation, engagement)
 
 **On INCREMENTAL scan:** only re-run if email-related files changed (lib/email*, app/api/email*, package.json email deps). Otherwise preserve previous audit.
 
-## Testing
+## Testing — Score: X/10
+
+### Test Infrastructure
 
 | Metric | Value |
-Framework, test files count, last run status
+|--------|-------|
+| Framework | [Jest/Vitest/Playwright/Cypress/pytest/etc.] |
+| Test files | N |
+| Last run | [pass/fail/not run] |
+
+### Testing Readiness Audit (auto-activates on FULL scan)
+
+**Purpose:** Detect what critical flows have test coverage and which don't. Does NOT run tests — only checks what exists. Recommends what to write.
+
+**Step 1 — Detect test infrastructure:**
+
+\```bash
+# Test frameworks installed
+grep -E "jest|vitest|playwright|cypress|@testing-library|pytest|rspec|mocha|jasmine" package.json 2>/dev/null
+
+# Test config files
+ls jest.config* vitest.config* playwright.config* cypress.config* pytest.ini setup.cfg .rspec 2>/dev/null
+
+# Test files count by type
+echo "Unit:" $(find . \( -name "*.test.*" -o -name "*.spec.*" \) -not -name "*e2e*" -not -name "*integration*" | grep -v node_modules | wc -l | tr -d ' ')
+echo "E2E:" $(find . \( -name "*e2e*" -o -name "*integration*" \) \( -name "*.test.*" -o -name "*.spec.*" \) | grep -v node_modules | wc -l | tr -d ' ')
+echo "Total:" $(find . \( -name "*.test.*" -o -name "*.spec.*" \) | grep -v node_modules | wc -l | tr -d ' ')
+\```
+
+**Step 2 — Detect critical flow coverage:**
+
+For each critical flow, check if a test file mentions it:
+
+\```bash
+# Auth flows
+grep -rl "login\|signIn\|sign.in" --include="*.test.*" --include="*.spec.*" . 2>/dev/null | grep -v node_modules
+grep -rl "register\|signUp\|sign.up" --include="*.test.*" --include="*.spec.*" . 2>/dev/null | grep -v node_modules
+grep -rl "reset.password\|forgot.password\|recovery" --include="*.test.*" --include="*.spec.*" . 2>/dev/null | grep -v node_modules
+grep -rl "logout\|signOut\|sign.out" --include="*.test.*" --include="*.spec.*" . 2>/dev/null | grep -v node_modules
+
+# Payment flows
+grep -rl "checkout\|payment\|subscribe\|webhook" --include="*.test.*" --include="*.spec.*" . 2>/dev/null | grep -v node_modules
+
+# API routes
+grep -rl "api/chat\|api/admin\|api/email\|api/webhook\|api/account" --include="*.test.*" --include="*.spec.*" . 2>/dev/null | grep -v node_modules
+
+# Core features (adapt to project)
+grep -rl "dashboard\|profile\|settings" --include="*.test.*" --include="*.spec.*" . 2>/dev/null | grep -v node_modules
+\```
+
+**Step 3 — Display in dashboard:**
+
+\```
+### Testing Readiness — Score: X/10
+
+  Framework ················ [Jest/Playwright/etc.]
+  Test files ··············· N unit · N E2E · N total
+  Config ··················· ✅/🔴 [config file present / missing]
+
+  Critical Flow Coverage:
+  ─────────────────────────────────────────────────
+  Flow                  Unit    E2E     Status
+  ─────────────────────────────────────────────────
+  Login                 ✅      ✅      Covered
+  Register              ✅      🔴      Partial
+  Forgot password       🔴      🔴      No coverage
+  Reset password        🔴      🔴      No coverage
+  Checkout/payment      🔴      🔴      No coverage
+  API: /api/chat        ✅      🔴      Partial
+  API: /api/admin       🔴      🔴      No coverage
+  Dashboard             🔴      🔴      No coverage
+  ─────────────────────────────────────────────────
+
+  Recommended tests to write:
+  → E2E: login + register flow                            ← auto · M
+  → E2E: forgot password + reset flow                     ← auto · M
+  → Unit: webhook signature verification                  ← auto · S
+  → E2E: checkout flow (if payments configured)            ← auto · M
+\```
+
+**Scoring rules:**
+- Test framework installed + config present → base 3/10
+- Each critical flow with unit test → +1 point (max 4)
+- Each critical flow with E2E test → +1 point (max 3)
+- All critical flows covered → 10/10
+- No test framework detected → 1/10
+- Framework installed but 0 test files → 2/10
+
+**Important:** This audit ONLY detects coverage gaps and recommends. It does NOT run tests, does NOT write tests, and does NOT block anything. When the user says "write tests" or "prueba esto" or "verifica que funcione", THEN write and run the recommended tests.
+
+**On INCREMENTAL scan:** only re-run if test files or critical flow files changed. Otherwise preserve previous audit.
 
 ## Legal — X/Y
 
