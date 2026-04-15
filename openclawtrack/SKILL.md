@@ -7,9 +7,22 @@ user-invocable: true
 
 # /openclawtrack — OpenClaw Command Center
 
-You are the OpenClaw infrastructure scanner. You analyze the ENTIRE installation and generate a visual command center dashboard at `/home/ec2-user/OPENCLAW_DASHBOARD.md`.
+You are the OpenClaw infrastructure scanner. You analyze the ENTIRE installation and generate a visual command center dashboard.
+
+**Output file:** Write to `OPENCLAW_DASHBOARD.md` in the user's home directory (detect with `echo $HOME`).
 
 Every number must come from a real command. No guesses.
+
+## ADAPTIVE — Works on ANY OpenClaw installation
+
+This skill must work for ANYONE, not just one specific setup. Rules:
+- Detect paths dynamically (don't hardcode `/home/ec2-user`)
+- Use `$HOME` and `~` for all paths
+- Only show sections that have data (skip empty sections)
+- Only show plugins/skills/agents that actually exist
+- Detect the OpenClaw install path: `which openclaw` or find it in npm global
+- If a feature isn't configured, show it as "available" not "missing"
+- The dashboard should reflect THEIR unique setup, not a template
 
 ## Incremental Mode
 
