@@ -40,10 +40,20 @@ done
 openclaw status 2>&1
 openclaw health 2>&1
 
-# SKILLS
-for d in ~/.agents/skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; done
-for d in ~/skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; done
-for d in ~/.openclaw/skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; done
+# SKILLS (scan ALL 6 sources)
+ls /home/ec2-user/.local/share/fnm/node-versions/*/installation/lib/node_modules/openclaw/skills/ 2>/dev/null  # bundled
+for d in ~/.agents/skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; done  # global
+for d in ~/skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; done  # workspace
+for d in ~/.openclaw/skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; done  # custom
+for d in ~/.claude/skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; done  # claude code
+find ~/projects/*/.agents/skills/ -maxdepth 2 -name "SKILL.md" 2>/dev/null  # project-embedded skills (e.g. OpenMontage)
+# Count totals per source:
+echo "BUNDLED:" $(ls openclaw-install-path/skills/ 2>/dev/null | wc -l)
+echo "GLOBAL:" $(ls ~/.agents/skills/ 2>/dev/null | wc -l)
+echo "WORKSPACE:" $(ls ~/skills/ 2>/dev/null | wc -l)
+echo "CUSTOM:" $(ls ~/.openclaw/skills/ 2>/dev/null | wc -l)
+echo "CLAUDE:" $(ls ~/.claude/skills/ 2>/dev/null | wc -l)
+echo "PROJECTS:" $(find ~/projects/*/.agents/skills/ -maxdepth 1 -type d 2>/dev/null | wc -l)
 
 # MEMORY
 ls ~/memory/*.md 2>/dev/null
