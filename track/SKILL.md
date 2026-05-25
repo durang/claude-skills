@@ -18,12 +18,13 @@ Every number you write must come from a command you ran. No guesses. No placehol
 The dashboard must stay current WITHOUT requiring `/track` every time. Follow these rules:
 
 **After completing any significant work** (feature, fix, config change, security hardening):
-1. Update the `Last sync` timestamp + commit hash
+1. Update the `Last sync` timestamp + commit hash in DASHBOARD.md
 2. Add a row to `Recent Activity` with time, description, and impact
 3. Update affected Launch Readiness bars (%) if the work changed an area
 4. Update Goals (mark completed items, recalculate gap)
 5. Move completed items from Pending to Shipped
-6. Commit the dashboard update alongside the code changes
+6. **If `STATE.md` exists (Seguro mode):** also update STATE.md — move fixed items from "🔴 roto AHORA" to "🧠 Memoria de decisiones", tachar completed "🎯 Próximas acciones", bump `Última actualización` to today's date. The seguro is the living source-of-truth between sessions — it MUST stay current.
+7. Commit dashboard + STATE.md update alongside the code change
 
 **This is lightweight** — only edit the lines that changed. Don't re-run build, audit, or velocity commands. That's what `/track` is for.
 
@@ -343,8 +344,23 @@ if [ -n "$DASHBOARD" ]; then
   CURRENT_HASH=$(git rev-parse HEAD 2>/dev/null)
   UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 
-  if [ -n "$LAST_HASH" ] && [ "$LAST_HASH" = "$CURRENT_HASH" ] && [ "$UNCOMMITTED" = "0" ]; then
+  # Seguro override: if STATE.md exists and was modified more recently than the
+  # last dashboard scan, NEVER skip — the user explicitly wrote new state and
+  # we must honor it. STATE.md changes ALWAYS trigger at least INCREMENTAL.
+  STATE_NEWER=0
+  if [ -f STATE.md ]; then
+    STATE_MTIME=$(stat -f %m STATE.md 2>/dev/null || stat -c %Y STATE.md 2>/dev/null)
+    DASH_MTIME=$(stat -f %m "$DASHBOARD" 2>/dev/null || stat -c %Y "$DASHBOARD" 2>/dev/null)
+    if [ -n "$STATE_MTIME" ] && [ -n "$DASH_MTIME" ] && [ "$STATE_MTIME" -gt "$DASH_MTIME" ]; then
+      STATE_NEWER=1
+    fi
+  fi
+
+  if [ -n "$LAST_HASH" ] && [ "$LAST_HASH" = "$CURRENT_HASH" ] && [ "$UNCOMMITTED" = "0" ] && [ "$STATE_NEWER" = "0" ]; then
     echo "SCAN_MODE=SKIP"  # No changes at all
+  elif [ "$STATE_NEWER" = "1" ]; then
+    echo "SCAN_MODE=INCREMENTAL"  # STATE.md was edited — must reconcile
+    echo "STATE_DRIVEN=1"
   elif [ -n "$LAST_HASH" ]; then
     echo "SCAN_MODE=INCREMENTAL"
     git log --oneline "$LAST_HASH..HEAD" 2>/dev/null
@@ -1877,6 +1893,20 @@ Decisions are NOT just "what we chose". They MUST include what was rejected and 
 - `PROGRESS.md` — sync %, append change log
 - `DASHBOARD.md` — sync if not a redirect
 - `TODO.md` / `ROADMAP.md` — mark completed items
+- **`STATE.md` (if exists — Seguro mode)** — this is the user's living checkpoint, MUST stay in sync:
+  - If items in "🔴 Lo que está roto AHORA" are now verified-fixed by this scan → propose moving them to "🧠 Memoria de decisiones" with the resolution date.
+  - If new blockers were discovered during the scan → propose adding them to "🔴 roto AHORA".
+  - If "🎯 Próximas acciones" items shipped (verified in code/git) → propose tachar.
+  - Update `Última actualización` to today's date.
+  - **Never auto-overwrite without showing the diff to the user.** The user is the gatekeeper of the seguro. Show the proposed STATE.md diff, then write only after acknowledgment (or after `--auto-update-state` flag).
+
+### Why STATE.md gets special treatment
+
+DASHBOARD.md is machine-derived (metrics from commands). STATE.md is human-curated (Sergio's intent: "es necesario que siempre se guarde donde nos quedamos y nunca nos perdamos"). The two complement each other:
+- DASHBOARD: how much is built
+- STATE: what we're doing about it RIGHT NOW + what's broken + what's next
+
+When DASHBOARD says "99%" but STATE says "🔴 Evolution API down" — STATE wins for "is this ready?". Always.
 
 ## Phase 6.5: Auto-configure CLAUDE.md (first run only)
 
@@ -1884,16 +1914,35 @@ Check if `CLAUDE.md` exists. If it does, check if it already contains the sessio
 
 **If CLAUDE.md doesn't exist:** create it with project name + session start block.
 
-**If CLAUDE.md exists but missing session start:** inject this block at the TOP of the file, right after the first heading:
+**If CLAUDE.md exists but missing session start:** inject this block at the TOP of the file, right after the first heading.
 
+The injected block depends on which planning files exist:
+
+**If `STATE.md` exists (Seguro mode — preferred):**
 ```markdown
 ## Session Start (IMPORTANT)
 
 At the **start of every conversation**, before the user says anything:
-1. Read `INFRASTRUCTURE_STATUS.md` — check Launch %, Recent Activity, and Next Actions
+1. Read `STATE.md` FIRST — the seguro: dónde quedamos, qué está roto AHORA, próximas acciones priorizadas. This is the authoritative "where are we now" doc that survives context resets.
+2. Read `SPEC.md` (if exists) — the contract: what we're building.
+3. Read `DASHBOARD.md` (or `INFRASTRUCTURE_STATUS.md`) — how much is built.
+4. If a `MASTER-AUDIT-YYYY-MM-DD.md` exists newer than SPEC, read it — most recent exhaustive analysis.
+5. Greet with a 2-line status: current %, what was last done, and what's the highest-impact next action from STATE.md "🎯 Próximas acciones".
+6. After any significant work → update BOTH STATE.md AND DASHBOARD.md, commit them with the code change.
+
+This makes every session productive from second one. STATE.md is the seguro — never lose context between sessions.
+```
+
+**If no STATE.md yet (legacy projects):**
+```markdown
+## Session Start (IMPORTANT)
+
+At the **start of every conversation**, before the user says anything:
+1. Read `INFRASTRUCTURE_STATUS.md` (or `DASHBOARD.md`) — check Launch %, Recent Activity, and Next Actions
 2. Greet with a 2-line status: current %, what was last done, and what's the highest-impact next action
 3. If there are `← auto` items ready in Goals or Active Tasks, offer to start immediately
 4. After completing any significant work, update the dashboard (timestamp, %, Recent Activity, Goals)
+5. **Recommended:** create a `STATE.md` seguro doc so context persists across sessions. Ask the user if they want one bootstrapped.
 
 This makes every session productive from second one.
 ```
@@ -1909,20 +1958,26 @@ This ensures every project that runs `/track` once gets the auto-update behavior
 ║  [◠‿◠] Scan · Progress Dashboard                    ║
 ╚═══════════════════════════════════════════════════════╝
 
- Mode:    FULL | INCREMENTAL
+ Mode:    FULL | INCREMENTAL | SEGURO
  Launch:  [████████████████░░░░]  80%  (was 75%, +5%)
+ Seguro:  STATE.md present · 🔴 N roto · 🎯 N próximas acciones
+          (or: "No STATE.md — recommended to create one")
  Build:   ✅ Pass (0 errors)
  Deps:    N prod · N dev · N outdated · N vulns
  Git:     N commits/7d · N branches · N uncommitted
  Health:  N TODOs · N FIXMEs · N BLOCKERs
 
- Next:
+ Next (from STATE.md 🎯 Próximas acciones, or derived if no STATE):
   1. [highest impact action]
   2. [second action]
   3. [third action]
 
+ STATE.md proposed updates: [N items to move/tachar/add] (run with --auto-update-state to apply, or review the diff)
+
  Changed: [files updated]
 ```
+
+When STATE.md exists, the "Next" section MUST come from STATE.md's "🎯 Próximas acciones" P0/P1 items, not from auto-derivation. STATE.md is the seguro — what Sergio says is next, IS next.
 
 ## Phase 8: Auto-sync to GitHub
 
@@ -1941,29 +1996,41 @@ Silent. Don't mention unless it fails.
 
 These systems ensure projects actually get FINISHED, not just tracked.
 
-### 1. Context Persistence (`continue.md`)
+### 1. Context Persistence — STATE.md (Seguro) + continue.md (ephemeral)
 
-**When a conversation is ending** (user says goodbye, context is getting long, or session is wrapping up), write a `continue.md` file in the project root:
+Two complementary mechanisms — don't confuse them:
+
+| File | Lifespan | Scope | Purpose |
+|---|---|---|---|
+| **`STATE.md`** | Permanent (committed) | Macro: project state | Source-of-truth for "where are we", "what's broken", "what's next". Survives context resets. |
+| **`continue.md`** | Ephemeral (uncommitted) | Micro: current task | Mid-task bookmark for the exact line of code/decision you were on. Deleted after resume. |
+
+**When a conversation is ending** (user says goodbye, context is getting long, or session is wrapping up):
+
+1. **Always update STATE.md first** — move completed items from "🎯 Próximas acciones" to "🧠 Memoria de decisiones", add anything new discovered. Commit it.
+2. **If a specific task was in flight**, ALSO write `continue.md`:
 
 ```markdown
-<!-- Auto-generated by [◠‿◠] Scan — read this at session start -->
+<!-- Auto-generated by [◠‿◠] Scan — read this at session start, then DELETE -->
 ## Resume Point
 
 **Working on:** [exact task in progress]
-**File:** [file being edited, with line number if applicable]  
+**File:** [file being edited, with line number if applicable]
 **Status:** [what's done, what's left]
 **Next step:** [the very next action to take]
 **Blocked by:** [nothing / specific issue]
 **Context:** [1-2 sentences of important context that would be lost]
-**Dashboard:** INFRASTRUCTURE_STATUS.md at XX%
+**STATE.md:** see "🎯 Próximas acciones" for the broader plan
+**Dashboard:** DASHBOARD.md at XX%
 ```
 
 **At the start of every session:**
-1. Check if `continue.md` exists → read it → resume exactly where it left off
-2. If no `continue.md` → read the dashboard and propose the highest-impact action
-3. After resuming, delete `continue.md` (it's ephemeral, not permanent state)
+1. Read `STATE.md` FIRST — establishes the broad context (the seguro).
+2. Check if `continue.md` exists → read it → resume that exact task within the STATE.md context.
+3. After resuming and completing the task: update STATE.md, then delete continue.md (it's ephemeral).
+4. If no `continue.md` → pick the highest-impact item from STATE.md "🎯 Próximas acciones".
 
-**Critical:** `continue.md` is the bridge between conversations. Without it, every new session starts from scratch reading the dashboard. With it, you pick up mid-task.
+**Critical:** STATE.md is the long-term seguro that ALWAYS exists. continue.md is the short-term bookmark that comes and goes. Together they make every session productive from second one — no context lost, no re-deriving the plan from scratch.
 
 ### 2. Mechanical Verification
 
