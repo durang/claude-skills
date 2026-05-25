@@ -193,6 +193,139 @@ $ARGUMENTS
 
 ---
 
+## Phase -2: Plan Discovery (NEW — runs before SPEC detection)
+
+**Before reading SPEC.md, scan the project for the freshest planning artifacts and load them as authoritative context.** Planning files drift between sessions; `/track` must always pick up the latest plan automatically — never operate from stale assumptions.
+
+```bash
+# Scan for known planning artifacts, sorted by mtime (newest first).
+# These names are the convention in projects that use the agentic Trinity + Seguro pattern.
+PLAN_FILES=$(ls -t \
+  STATE.md \
+  PLAN.md \
+  MASTER-AUDIT-*.md \
+  MASTER-PLAN.md \
+  AUDIT-*.md \
+  ROADMAP.md \
+  BACKLOG.md \
+  CHANGELOG.md \
+  LAUNCH_HARDENING.md \
+  AGENT-EVOLUTION.md \
+  2>/dev/null | head -10)
+echo "PLAN_FILES_FOUND:"
+echo "$PLAN_FILES"
+
+# Identify the live "Seguro" — STATE.md is the highest-priority source-of-truth
+HAS_SEGURO=0
+[ -f STATE.md ] && HAS_SEGURO=1
+echo "HAS_SEGURO=$HAS_SEGURO"
+
+# Detect whichever PLAN-like file changed most recently
+NEWEST_PLAN=$(ls -t STATE.md PLAN.md MASTER-AUDIT-*.md MASTER-PLAN.md AUDIT-*.md 2>/dev/null | head -1)
+echo "NEWEST_PLAN=$NEWEST_PLAN"
+
+# Git mtime of each planning file — surface staleness
+for f in $PLAN_FILES; do
+  LAST_COMMIT=$(git log -1 --format='%cr' -- "$f" 2>/dev/null)
+  echo "$f — last changed: ${LAST_COMMIT:-uncommitted}"
+done
+```
+
+### Behavior matrix
+
+| State | Action |
+|-------|--------|
+| `HAS_SEGURO=1` (STATE.md exists) | **Seguro mode.** Read STATE.md FIRST. Treat its "🔴 Lo que está roto AHORA" and "🎯 Próximas acciones" sections as authoritative for "what's next". SPEC/DASHBOARD become secondary verification. After full scan, propose updates to STATE.md (don't auto-write — that's done at the end of meaningful work). |
+| `NEWEST_PLAN` is a MASTER-AUDIT-YYYY-MM-DD.md | Read it before SPEC. It contains the most recent exhaustive analysis. Cross-reference its findings with current code state. |
+| `NEWEST_PLAN` is PLAN.md and SPEC.md is older | PLAN.md is the live executive plan. Read it first, then SPEC for the contract. |
+| All planning files >30 days old | Surface a warning at top: "All planning docs are stale (>30d). Recommend creating fresh STATE.md before proceeding." |
+
+### Why this matters
+
+The user may run `/track` after writing a new plan, fixing something critical, or returning from a context reset. The skill must pick up the freshest signal *before* doing anything else. STATE.md is the "seguro" (safe) — a living document the user expects to be honored.
+
+**Never** ignore STATE.md if present. **Never** generate a dashboard that contradicts STATE.md's "roto AHORA" section. If a finding in STATE.md is contradicted by code, surface the conflict explicitly — don't silently override.
+
+### Seguro update protocol (after scan)
+
+When `/track` completes a meaningful scan and STATE.md exists:
+
+1. If new findings emerged (regressions, items fixed, new blockers) → propose a STATE.md diff to the user.
+2. If items in STATE.md's "🔴 roto AHORA" are now verified-fixed by the scan → propose moving them to "🧠 Memoria de decisiones".
+3. Never auto-overwrite STATE.md without showing the diff. The user is the gatekeeper.
+
+---
+
+## Phase -1: SPEC.md Contract Detection
+
+**Before any scan, check if the project has a `SPEC.md` with a Track Contract.** If it does, the contract is the AUTHORITATIVE definition of what to measure. The dashboard's area breakdown comes from SPEC, not from auto-detection.
+
+```bash
+HAS_SPEC=0
+HAS_TRACK_CONTRACT=0
+if [ -f SPEC.md ]; then
+  HAS_SPEC=1
+  if grep -q "## Track Contract" SPEC.md 2>/dev/null; then
+    HAS_TRACK_CONTRACT=1
+  fi
+fi
+echo "SPEC=$HAS_SPEC TRACK_CONTRACT=$HAS_TRACK_CONTRACT"
+```
+
+### Behavior matrix
+
+| State | Action |
+|-------|--------|
+| `SPEC=1 TRACK_CONTRACT=1` | **Spec-driven mode.** Parse the YAML inside `## Track Contract`. For each `area`, run its `verify` command, score the area against `done_when`. Use the `weight` for the OVERALL %. Skip auto area detection in Phase 4. |
+| `SPEC=1 TRACK_CONTRACT=0` | Hybrid. Read SPEC for context, but auto-detect areas as before. Suggest adding a Track Contract at end of scan. |
+| `SPEC=0` | Legacy mode. Auto-detect areas as in Phase 4. Suggest creating SPEC.md if project is large (>50 source files or has complex architecture). |
+
+### Spec-driven mode rules
+
+- **Source of truth = SPEC.md.** If SPEC.md scope changes (detected via git diff on `## Track Contract` section), trigger re-baseline of the OVERALL %.
+- **Verify commands MUST pass.** If `verify` returns non-zero or empty when match expected, mark area incomplete with the actual output.
+- **Weight overrides defaults.** Don't apply the "blockers 2x" rule when explicit weights are present in the contract.
+- **New areas in SPEC** → add to dashboard at 0% with the label from SPEC's "Sprint X Day Y" or `done_when`.
+- **Removed areas in SPEC** → mark deprecated in dashboard, don't delete (preserves history).
+- **Re-baseline trigger:** if `git log --oneline -- SPEC.md | head -1` differs from the hash in `<!-- spec:HASH -->` comment in dashboard, recompute everything.
+
+### Track Contract YAML schema
+
+The expected format inside `## Track Contract` section:
+
+```yaml
+areas:
+  - name: <human-readable area name>
+    weight: <integer, 1-3 typical>
+    done_when: <subjective criterion, prose>
+    verify: <executable shell command or grep that returns evidence>
+```
+
+Example:
+```yaml
+areas:
+  - name: Sprint 1 Backend
+    weight: 2
+    done_when: "5 modules with tests + migrations"
+    verify: "find apps/server/modules -name 'knowledge*.js' = 7"
+```
+
+### Docs Trinity convention
+
+Projects following the SPEC + DASHBOARD + CHANGELOG pattern follow these rules:
+
+| Doc | Role | Edited by |
+|-----|------|-----------|
+| `SPEC.md` | Contract — what we're building | Human (PR review) |
+| `DASHBOARD.md` | Live state — how much built | `/track` (auto) |
+| `CHANGELOG.md` | History — what shipped when | Both (append-only) |
+
+Sync direction is one-way: SPEC → DASHBOARD. Never edit DASHBOARD directly to introduce new scope. Edit SPEC first.
+
+When `/track` runs in spec-driven mode and detects scope drift in DASHBOARD vs SPEC, surface a warning at the top of the scan output.
+
+---
+
 ## Phase 0: Incremental Detection
 
 **Before doing anything else**, check if a previous scan exists and determine scan mode.
