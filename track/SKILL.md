@@ -912,6 +912,39 @@ Sync commands per platform:
 | Service | Purpose | Config | Status |
 [Every external integration]
 
+### Service Accounts (which account each integration runs under)
+
+Answers "I'm using Resend / Supabase / Vercel… but under which account/email?". For every external service the project integrates, surface the ACCOUNT it is registered under — not just that a key exists. **Identity only — NEVER print API keys, tokens, or secrets.** All paths are project-scoped (the project being tracked), not the host machine.
+
+```bash
+# Resend — verified sending domains reveal the account (key stays hidden):
+RKEY=$(grep -hE '^RESEND_API_KEY=' .env .env.local 2>/dev/null | head -1 | cut -d= -f2-)
+[ -n "$RKEY" ] && curl -s https://api.resend.com/domains -H "Authorization: Bearer $RKEY" 2>/dev/null | grep -oE '"name":"[^"]+"' | head -5
+# Supabase — project ref from the URL (never the key):
+grep -rhoE 'https://[a-z0-9]+\.supabase\.co' .env .env.local 2>/dev/null | sort -u
+# Vercel — linked org + project (no secrets in this file):
+[ -f .vercel/project.json ] && grep -oE '"(orgId|projectName)":[^,}]+' .vercel/project.json
+# Stripe — live vs test mode from key PREFIX only, never the key itself:
+grep -hoE '^STRIPE_SECRET_KEY=sk_(live|test)' .env .env.local 2>/dev/null | sed 's/.*=//'
+# Git — this project's commit identity + remote owner:
+git config user.email 2>/dev/null; git remote get-url origin 2>/dev/null | sed -E 's#.*[:/]([^/]+)/[^/]+(\.git)?$#\1#'
+# Any *EMAIL / *ACCOUNT_ID in the project env (filter out anything secret):
+grep -rhiE '^[A-Z_]*(EMAIL|ACCOUNT_ID)=' .env .env.local 2>/dev/null | grep -viE 'KEY|TOKEN|SECRET|PASSWORD'
+```
+
+Render one row per detected service:
+
+```
+| Service   | Account / Identity            | Source                    |
+|-----------|-------------------------------|---------------------------|
+| Resend    | notifications@yourdomain.com  | verified domain (API)     |
+| Supabase  | fddaqryv… (project ref)       | SUPABASE_URL              |
+| Vercel    | durang / clawdex-admin        | .vercel/project.json      |
+| GitHub    | durang                        | git remote                |
+```
+
+Service configured but account not locally derivable → `configured (key present)`. Missing identity (e.g. git `user.email` empty) → flag ⚠️.
+
 ---
 
 ## Metrics
