@@ -1,0 +1,37 @@
+{
+  "proyecto": "Ejemplo",
+  "actualizado": "2026-10-02",
+  "arbol": "limpio, todo pusheado",
+  "commit": "abc1234",
+  "pruebas": "12 pruebas en verde",
+  "resumen": "Se cerró el aviso de la portada. El porqué no obvio: la antigüedad salía en cero cuando faltaba el vendedor, así que ventas viejas parecían de hoy.",
+  "cortado_en": "Faltaba mirar el aviso en el navegador. Compila y las pruebas pasan; nadie lo ha visto.",
+  "comandos": [
+    "pnpm test",
+    "pnpm build"
+  ],
+  "prohibido_publico": ["comisión", "comision", "ingreso", "service_role"],
+  "tablero_url": "",
+  "entradas": [
+    {
+      "id": "aviso-portada",
+      "titulo": "Aviso de ventas sin registrar",
+      "estado": "desplegado",
+      "fecha": "2026-10-01",
+      "interno": "La antigüedad usa updated_at. El cálculo anterior devolvía 0 sin vendedor.",
+      "publico": "En la portada aparecen las ventas marcadas como hechas que todavía no se registraron. Las de más de dos semanas van aparte.",
+      "prueba": "Abre el panel. Si hay alguna, el aviso está arriba del inicio.",
+      "evidencia": ""
+    },
+    {
+      "id": "buscador",
+      "titulo": "El buscador ignora acentos",
+      "estado": "verificado",
+      "fecha": "2026-10-01",
+      "interno": "Normaliza NFD y quita marcas antes de comparar.",
+      "publico": "Buscar «lopez» encuentra «López».",
+      "prueba": "En el buscador escribe lopez sin acento. Tiene que aparecer López.",
+      "evidencia": "Probado en pantalla: lopez devolvió a López."
+    }
+  ]
+}
