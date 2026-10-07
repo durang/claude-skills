@@ -53,7 +53,9 @@ if estado.exists():
     except Exception:
         citado = ""
     if citado and git("cat-file", "-t", citado) == "commit":
-        n = git("rev-list", "--count", f"{citado}..HEAD")
+        # Solo cuentan commits de producto: los que tocan el propio ledger no dejan el ledger atrás
+        n = git("rev-list", "--count", f"{citado}..HEAD", "--", ".", ":(exclude)estado",
+                ":(exclude)HANDOFF.md", ":(exclude)cowork/HANDOFF.md", ":(exclude)CLAUDE.md", ":(exclude)AGENTS.md")
         if n and n != "0":
             avisos.append(f"{n} commit(s) después del commit que cita el ledger ({citado}).")
     sucios = [l[3:] for l in git("status", "--porcelain").splitlines()
